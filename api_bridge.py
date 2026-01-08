@@ -75,16 +75,27 @@ app.add_middleware(
 
 # Initialize DB and Intelligence
 db_path = os.getenv("DB_PATH", "./memory.sqlite")
-qdrant_url = os.getenv("QDRANT_URL", "http://localhost:6333")
+qdrant_url = os.getenv("QDRANT_URL", "")  # Empty string disables Qdrant
 
 try:
-    db = UnifiedMemoryDB(db_path=db_path, qdrant_url=qdrant_url)
+    # Only pass qdrant_url if it's not empty
+    if qdrant_url:
+        db = UnifiedMemoryDB(db_path=db_path, qdrant_url=qdrant_url)
+    else:
+        db = UnifiedMemoryDB(db_path=db_path, qdrant_url=None)
     intel = IntelligenceEngine(db)
     log.info(f"✅ Initialized memory DB at {db_path}")
 except Exception as e:
     log.error(f"❌ Failed to initialize: {e}")
-    db = None
-    intel = None
+    log.warning("Attempting to initialize without Qdrant...")
+    try:
+        db = UnifiedMemoryDB(db_path=db_path, qdrant_url=None)
+        intel = IntelligenceEngine(db)
+        log.info(f"✅ Initialized memory DB at {db_path} (without Qdrant)")
+    except Exception as e2:
+        log.error(f"❌ Failed to initialize even without Qdrant: {e2}")
+        db = None
+        intel = None
 
 # === REQUEST MODELS ===
 
