@@ -1,0 +1,3 @@
+[submodule "vendor/chat-export-structurer"]
+	path = vendor/chat-export-structurer
+	url = https://github.com/1ch1n/chat-export-structurer
