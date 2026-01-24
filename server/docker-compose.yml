@@ -1,0 +1,78 @@
+# Jarvis Server Docker Compose
+# All services bind to localhost only - access via Tailscale
+
+services:
+  jarvis-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jarvis-server
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      - JARVIS_DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-jarvis}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-jarvis}
+      - JARVIS_QDRANT_HOST=qdrant
+      - JARVIS_QDRANT_PORT=6333
+      - JARVIS_STORAGE_PATH=/data/captures
+      - JARVIS_LOG_LEVEL=${JARVIS_LOG_LEVEL:-INFO}
+    volumes:
+      - captures:/data/captures
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    networks:
+      - jarvis-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: jarvis-postgres
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-jarvis}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - POSTGRES_DB=${POSTGRES_DB:-jarvis}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - jarvis-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-jarvis}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: jarvis-qdrant
+    ports:
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - jarvis-net
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    name: jarvis-postgres-data
+  qdrant_data:
+    name: jarvis-qdrant-data
+  captures:
+    name: jarvis-captures
+
+networks:
+  jarvis-net:
+    name: jarvis-network
+    driver: bridge
