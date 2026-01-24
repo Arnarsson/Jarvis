@@ -84,7 +84,7 @@ class CaptureUploader:
                     data = {"metadata": json.dumps(metadata)}
 
                     response = await self._client.post(
-                        f"{self.server_url}/api/captures",
+                        f"{self.server_url}/api/captures/",
                         files=files,
                         data=data,
                     )
@@ -160,7 +160,7 @@ class CaptureUploader:
                 form_data = {"metadata": json.dumps(metadata)}
 
                 response = await self._client.post(
-                    f"{self.server_url}/api/captures",
+                    f"{self.server_url}/api/captures/",
                     files=files,
                     data=form_data,
                 )
