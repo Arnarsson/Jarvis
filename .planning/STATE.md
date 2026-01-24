@@ -62,6 +62,9 @@ Recent decisions affecting current work:
 - [01-05]: time.monotonic() for idle timestamps (immune to clock changes)
 - [01-05]: NamedTuple for WindowInfo (immutable, hashable)
 - [01-05]: Graceful error handling (return None vs raise)
+- [01-06]: lru_cache for FileStorage singleton (single instance across requests)
+- [01-06]: Dual health endpoints (/ for dashboards, /ready for load balancers)
+- [01-06]: Structured logging with masked database URL for security
 - [01-07]: httpx.AsyncClient for connection pooling
 - [01-07]: No retry on 4xx errors (client errors not transient)
 - [01-07]: SQLite for queue persistence (simple, no deps)
