@@ -1,0 +1,13 @@
+{
+  "mode": "interactive",
+  "mode_notes": "Confirm by default. YOLO available for non-destructive actions.",
+  "depth": "standard",
+  "parallelization": true,
+  "commit_docs": true,
+  "model_profile": "quality",
+  "workflow": {
+    "research": true,
+    "plan_check": true,
+    "verifier": true
+  }
+}
