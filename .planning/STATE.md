@@ -52,6 +52,10 @@ Recent decisions affecting current work:
 - [01-02]: Hatchling build backend for server package (modern, fast, good src layout)
 - [01-02]: SQLAlchemy async_sessionmaker with expire_on_commit=False for API patterns
 - [01-02]: pool_pre_ping=True for connection health verification
+- [01-04]: UUID as string (36 chars) for cross-database portability
+- [01-04]: Timestamp index for time-range query performance
+- [01-04]: Date-partitioned storage ({YYYY}/{MM}/{DD}/{id}.jpg) for easy archival
+- [01-04]: Async Alembic migrations with asyncio.run wrapper
 - [01-05]: time.monotonic() for idle timestamps (immune to clock changes)
 - [01-05]: NamedTuple for WindowInfo (immutable, hashable)
 - [01-05]: Graceful error handling (return None vs raise)
