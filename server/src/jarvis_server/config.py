@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     qdrant_host: str = "localhost"
     qdrant_port: int = 6333
 
+    # Redis (for ARQ task queue)
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+
     # File storage
     storage_path: Path = Path("/data/captures")
 
