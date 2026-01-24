@@ -147,65 +147,27 @@ def start(
     signal.signal(signal.SIGINT, handle_signal)
 
     try:
-        # Import here to avoid circular imports and reduce startup time
-        from jarvis.capture.screenshot import ScreenCapture
-        from jarvis.monitor.window import WindowMonitor, ExclusionFilter
-        from jarvis.monitor.idle import IdleDetector
-        from jarvis.capture.change import ChangeDetector
-
-        # Initialize components
-        screen_capture = ScreenCapture(jpeg_quality=settings.jpeg_quality)
-        window_monitor = WindowMonitor()
-        exclusion_filter = ExclusionFilter(settings.load_exclusions())
-        idle_monitor = IdleDetector(idle_threshold=settings.idle_threshold)
-        idle_monitor.start()
-        change_detector = ChangeDetector()
+        import asyncio
+        from jarvis.engine.orchestrator import CaptureOrchestrator
 
         if not background:
             typer.echo("Agent started. Press Ctrl+C to stop.")
 
-        import time
-        last_capture = 0.0
-        captures_count = 0
+        # Override capture interval if provided
+        if interval:
+            settings.capture_interval = capture_interval
 
-        while True:
-            # Check for pause signal
-            if PAUSE_FILE.exists():
-                time.sleep(1)
-                continue
+        orchestrator = CaptureOrchestrator(settings)
 
-            # Check idle
-            if idle_monitor.is_idle():
-                time.sleep(capture_interval)
-                continue
-
-            # Check if enough time has passed
-            now = time.monotonic()
-            if now - last_capture < capture_interval:
-                time.sleep(0.5)
-                continue
-
-            # Check window exclusions
-            window = window_monitor.get_active_window()
-            should_exclude, _ = exclusion_filter.should_exclude(window)
-            if should_exclude:
-                time.sleep(1)
-                continue
-
-            # Capture
+        async def run_orchestrator():
             try:
-                captures = screen_capture.capture_active()
-                for monitor_idx, img, jpeg_bytes in captures:
-                    # Check for significant change
-                    if change_detector.has_changed(jpeg_bytes):
-                        captures_count += 1
-                        # For now, just count - actual upload handled by orchestrator
-                        # This is a simplified implementation for CLI demo
-            except Exception:
-                pass  # Silently continue on capture errors
+                await orchestrator.start()
+            except asyncio.CancelledError:
+                pass
+            finally:
+                await orchestrator.stop()
 
-            last_capture = now
-            time.sleep(0.5)
+        asyncio.run(run_orchestrator())
 
     except KeyboardInterrupt:
         pass
