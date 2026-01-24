@@ -10,27 +10,27 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 1 of 7 (Privacy-First Capture Foundation)
-Plan: 11 of 13 in current phase
+Plan: 12 of 13 in current phase
 Status: In progress
-Last activity: 2026-01-24 -- Completed 01-11-PLAN.md (Security Foundations)
+Last activity: 2026-01-24 -- Completed 01-12-PLAN.md (Docker Infrastructure)
 
-Progress: [########..] ~85%
+Progress: [#########.] ~92%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 12
 - Average duration: 3 min
-- Total execution time: 32 min
+- Total execution time: 34 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01 | 11 | 32 min | 2.9 min |
+| 01 | 12 | 34 min | 2.8 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-07 (3 min), 01-09 (2 min), 01-10 (4 min), 01-08 (4 min), 01-11 (6 min)
+- Last 5 plans: 01-09 (2 min), 01-10 (4 min), 01-08 (4 min), 01-11 (6 min), 01-12 (2 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -86,6 +86,9 @@ Recent decisions affecting current work:
 - [01-11]: structlog for server (richer context, request tracking)
 - [01-11]: Lazy Presidio initialization to avoid 5-10s startup delay
 - [01-11]: Custom regex patterns for API keys not covered by Presidio
+- [01-12]: All ports bound to 127.0.0.1 only for Tailscale-exclusive access
+- [01-12]: Multi-stage Docker build with non-root user for security
+- [01-12]: Named volumes for persistent data (postgres, qdrant, captures)
 
 ### Pending Todos
 
@@ -97,6 +100,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-24T20:57:54Z
-Stopped at: Completed 01-11-PLAN.md (Security Foundations)
+Last session: 2026-01-24T21:02:12Z
+Stopped at: Completed 01-12-PLAN.md (Docker Infrastructure)
 Resume file: None
