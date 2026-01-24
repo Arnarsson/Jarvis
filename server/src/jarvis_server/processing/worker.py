@@ -14,6 +14,15 @@ from .tasks import process_backlog, process_capture
 logger = logging.getLogger(__name__)
 
 
+def _get_redis_settings() -> RedisSettings:
+    """Get Redis connection settings from config."""
+    settings = get_settings()
+    return RedisSettings(
+        host=settings.redis_host,
+        port=settings.redis_port,
+    )
+
+
 class WorkerSettings:
     """ARQ worker settings for background processing."""
 
@@ -29,14 +38,8 @@ class WorkerSettings:
     max_jobs = 5  # Limit concurrent OCR jobs (memory intensive)
     job_timeout = 300  # 5 minutes per capture
 
-    @staticmethod
-    def redis_settings() -> RedisSettings:
-        """Get Redis connection settings from config."""
-        settings = get_settings()
-        return RedisSettings(
-            host=settings.redis_host,
-            port=settings.redis_port,
-        )
+    # Redis connection settings (loaded at worker startup)
+    redis_settings = _get_redis_settings()
 
     @staticmethod
     async def on_startup(ctx: dict) -> None:
