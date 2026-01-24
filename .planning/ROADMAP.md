@@ -35,19 +35,19 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 13 plans in 6 waves
 
 Plans:
-- [ ] 01-01-PLAN.md — Agent project foundation (pyproject, config, exclusions)
-- [ ] 01-02-PLAN.md — Server project foundation (FastAPI, SQLAlchemy, config)
-- [ ] 01-03-PLAN.md — Core screenshot capture with change detection
-- [ ] 01-04-PLAN.md — Database schema and filesystem storage
-- [ ] 01-05-PLAN.md — Idle detection and window monitoring
-- [ ] 01-06-PLAN.md — Server upload API endpoint
-- [ ] 01-07-PLAN.md — Agent-server sync with retry queue
-- [ ] 01-08-PLAN.md — Capture engine integration (orchestrator)
-- [ ] 01-09-PLAN.md — System tray interface
-- [ ] 01-10-PLAN.md — CLI interface with exclusion wizard
-- [ ] 01-11-PLAN.md — Security foundations (logging, PII detection)
-- [ ] 01-12-PLAN.md — Docker infrastructure
-- [ ] 01-13-PLAN.md — End-to-end verification (checkpoint)
+- [x] 01-01-PLAN.md — Agent project foundation (pyproject, config, exclusions)
+- [x] 01-02-PLAN.md — Server project foundation (FastAPI, SQLAlchemy, config)
+- [x] 01-03-PLAN.md — Core screenshot capture with change detection
+- [x] 01-04-PLAN.md — Database schema and filesystem storage
+- [x] 01-05-PLAN.md — Idle detection and window monitoring
+- [x] 01-06-PLAN.md — Server upload API endpoint
+- [x] 01-07-PLAN.md — Agent-server sync with retry queue
+- [x] 01-08-PLAN.md — Capture engine integration (orchestrator)
+- [x] 01-09-PLAN.md — System tray interface
+- [x] 01-10-PLAN.md — CLI interface with exclusion wizard
+- [x] 01-11-PLAN.md — Security foundations (logging, PII detection)
+- [x] 01-12-PLAN.md — Docker infrastructure
+- [x] 01-13-PLAN.md — End-to-end verification (checkpoint)
 
 ### Phase 2: Searchable Memory (RAG Core)
 **Goal**: User can search all captured content using natural language and browse visual history
@@ -59,12 +59,18 @@ Plans:
   3. AI chat exports (ChatGPT, Claude, Grok) can be imported and searched
   4. Processing pipeline handles backlog without blocking new captures
   5. Timeline browsing shows visual history of captures
-**Plans**: TBD
+**Plans**: 9 plans in 3 waves
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
-- [ ] 02-03: TBD
+- [ ] 02-01-PLAN.md — Redis infrastructure and Qdrant hybrid collection setup
+- [ ] 02-02-PLAN.md — OCR and embedding processors (EasyOCR, FastEmbed)
+- [ ] 02-03-PLAN.md — ARQ background processing pipeline
+- [ ] 02-04-PLAN.md — Hybrid search API with RRF fusion
+- [ ] 02-05-PLAN.md — Upload integration with processing queue
+- [ ] 02-06-PLAN.md — Chat export parsers (ChatGPT, Claude, Grok)
+- [ ] 02-07-PLAN.md — Chat import API and database storage
+- [ ] 02-08-PLAN.md — Timeline browsing API
+- [ ] 02-09-PLAN.md — Integration and end-to-end verification (checkpoint)
 
 ### Phase 3: MCP Server & Claude Code
 **Goal**: Claude Code can access Jarvis memory through MCP tools
@@ -153,7 +159,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Privacy-First Capture Foundation | 13/13 | **Complete** | 2026-01-24 |
-| 2. Searchable Memory (RAG Core) | 0/TBD | Not started | - |
+| 2. Searchable Memory (RAG Core) | 0/9 | Planned | - |
 | 3. MCP Server & Claude Code | 0/TBD | Not started | - |
 | 4. Calendar & Meeting Intelligence | 0/TBD | Not started | - |
 | 5. Email & Communication Context | 0/TBD | Not started | - |
@@ -164,4 +170,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 *Roadmap created: 2026-01-24*
 *Phase 1 planned: 2026-01-24*
 *Phase 1 completed: 2026-01-24*
+*Phase 2 planned: 2026-01-24*
 *Coverage: 50/50 v1 requirements mapped*
