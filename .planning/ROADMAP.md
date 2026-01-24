@@ -32,12 +32,22 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Sensitive applications (password managers, banking) are excluded from capture
   4. Desktop performance is not noticeably degraded while agent runs
   5. Captures are uploaded to server over encrypted Tailscale connection and stored securely
-**Plans**: TBD
+**Plans**: 13 plans in 6 waves
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
-- [ ] 01-03: TBD
+- [ ] 01-01-PLAN.md — Agent project foundation (pyproject, config, exclusions)
+- [ ] 01-02-PLAN.md — Server project foundation (FastAPI, SQLAlchemy, config)
+- [ ] 01-03-PLAN.md — Core screenshot capture with change detection
+- [ ] 01-04-PLAN.md — Database schema and filesystem storage
+- [ ] 01-05-PLAN.md — Idle detection and window monitoring
+- [ ] 01-06-PLAN.md — Server upload API endpoint
+- [ ] 01-07-PLAN.md — Agent-server sync with retry queue
+- [ ] 01-08-PLAN.md — Capture engine integration (orchestrator)
+- [ ] 01-09-PLAN.md — System tray interface
+- [ ] 01-10-PLAN.md — CLI interface with exclusion wizard
+- [ ] 01-11-PLAN.md — Security foundations (logging, PII detection)
+- [ ] 01-12-PLAN.md — Docker infrastructure
+- [ ] 01-13-PLAN.md — End-to-end verification (checkpoint)
 
 ### Phase 2: Searchable Memory (RAG Core)
 **Goal**: User can search all captured content using natural language and browse visual history
@@ -142,7 +152,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Privacy-First Capture Foundation | 0/TBD | Not started | - |
+| 1. Privacy-First Capture Foundation | 0/13 | Planning complete | - |
 | 2. Searchable Memory (RAG Core) | 0/TBD | Not started | - |
 | 3. MCP Server & Claude Code | 0/TBD | Not started | - |
 | 4. Calendar & Meeting Intelligence | 0/TBD | Not started | - |
@@ -152,4 +162,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 
 ---
 *Roadmap created: 2026-01-24*
+*Phase 1 planned: 2026-01-24*
 *Coverage: 50/50 v1 requirements mapped*
