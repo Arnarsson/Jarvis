@@ -3,12 +3,17 @@
 import typer
 
 from jarvis import __version__
+from jarvis.cli_commands.capture import capture_app
+from jarvis.cli_commands.status import status_command
 
 app = typer.Typer(
     name="jarvis",
     help="Jarvis Desktop Agent - Privacy-first screen capture for personal AI memory.",
     no_args_is_help=True,
 )
+
+# Register subcommands
+app.add_typer(capture_app, name="capture")
 
 
 def version_callback(value: bool) -> None:
@@ -33,10 +38,8 @@ def main(
     pass
 
 
-@app.command()
-def status() -> None:
-    """Show agent status."""
-    typer.echo("Agent status: not running")
+# Register status as a direct command on the main app
+app.command(name="status")(status_command)
 
 
 if __name__ == "__main__":
