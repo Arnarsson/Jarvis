@@ -13,7 +13,7 @@ Jarvis delivers on its core promise of "never lose context" through a seven-phas
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Privacy-First Capture Foundation** - Desktop agent captures screens, server infrastructure deployed, security foundations established
-- [ ] **Phase 2: Searchable Memory (RAG Core)** - OCR pipeline processes captures, embeddings enable semantic search across all content
+- [x] **Phase 2: Searchable Memory (RAG Core)** - OCR pipeline processes captures, embeddings enable semantic search across all content
 - [ ] **Phase 3: MCP Server & Claude Code** - Claude Code can query Jarvis memory and get caught up on any topic
 - [ ] **Phase 4: Calendar & Meeting Intelligence** - Calendar sync enables meeting detection, audio transcription, summaries and pre-meeting briefs
 - [ ] **Phase 5: Email & Communication Context** - Email context integrated into memory and pre-meeting briefs
@@ -62,15 +62,15 @@ Plans:
 **Plans**: 9 plans in 3 waves
 
 Plans:
-- [ ] 02-01-PLAN.md — Redis infrastructure and Qdrant hybrid collection setup
-- [ ] 02-02-PLAN.md — OCR and embedding processors (EasyOCR, FastEmbed)
-- [ ] 02-03-PLAN.md — ARQ background processing pipeline
-- [ ] 02-04-PLAN.md — Hybrid search API with RRF fusion
-- [ ] 02-05-PLAN.md — Upload integration with processing queue
-- [ ] 02-06-PLAN.md — Chat export parsers (ChatGPT, Claude, Grok)
-- [ ] 02-07-PLAN.md — Chat import API and database storage
-- [ ] 02-08-PLAN.md — Timeline browsing API
-- [ ] 02-09-PLAN.md — Integration and end-to-end verification (checkpoint)
+- [x] 02-01-PLAN.md — Redis infrastructure and Qdrant hybrid collection setup
+- [x] 02-02-PLAN.md — OCR and embedding processors (EasyOCR, FastEmbed)
+- [x] 02-03-PLAN.md — ARQ background processing pipeline
+- [x] 02-04-PLAN.md — Hybrid search API with RRF fusion
+- [x] 02-05-PLAN.md — Upload integration with processing queue
+- [x] 02-06-PLAN.md — Chat export parsers (ChatGPT, Claude, Grok)
+- [x] 02-07-PLAN.md — Chat import API and database storage
+- [x] 02-08-PLAN.md — Timeline browsing API
+- [x] 02-09-PLAN.md — Integration and end-to-end verification (checkpoint)
 
 ### Phase 3: MCP Server & Claude Code
 **Goal**: Claude Code can access Jarvis memory through MCP tools
@@ -159,7 +159,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Privacy-First Capture Foundation | 13/13 | **Complete** | 2026-01-24 |
-| 2. Searchable Memory (RAG Core) | 0/9 | Planned | - |
+| 2. Searchable Memory (RAG Core) | 9/9 | **Complete** | 2026-01-25 |
 | 3. MCP Server & Claude Code | 0/TBD | Not started | - |
 | 4. Calendar & Meeting Intelligence | 0/TBD | Not started | - |
 | 5. Email & Communication Context | 0/TBD | Not started | - |
@@ -171,4 +171,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 *Phase 1 planned: 2026-01-24*
 *Phase 1 completed: 2026-01-24*
 *Phase 2 planned: 2026-01-24*
+*Phase 2 completed: 2026-01-25*
 *Coverage: 50/50 v1 requirements mapped*

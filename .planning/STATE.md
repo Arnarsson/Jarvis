@@ -5,33 +5,33 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Never lose context -- whether away 2 hours or 2 months, Jarvis catches you up on any project, decision, or thread.
-**Current focus:** Phase 2: Searchable Memory (RAG Core)
+**Current focus:** Phase 3: MCP Server & Claude Code
 
 ## Current Position
 
-Phase: 2 of 7 (Searchable Memory - RAG Core)
-Plan: 8 of 9 in current phase
-Status: In progress
-Last activity: 2026-01-24 -- Completed 02-05-PLAN.md (Upload Integration)
+Phase: 3 of 7 (MCP Server & Claude Code)
+Plan: 0 of TBD in current phase
+Status: Ready to plan
+Last activity: 2026-01-25 -- Completed Phase 2 (Human Verified)
 
-Progress: [################--] 89% (Phase 2 - 8/9 plans)
+Progress: [##################] 100% (Phase 2 Complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 19
+- Total plans completed: 22
 - Average duration: 3 min
-- Total execution time: 49 min
+- Total execution time: 55 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01 | 12 | 34 min | 2.8 min |
-| 02 | 7 | 15 min | 2.1 min |
+| 01 | 13 | 34 min | 2.6 min |
+| 02 | 9 | 21 min | 2.3 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-02 (4 min), 02-08 (1 min), 02-04 (2 min), 02-07 (3 min), 02-05 (2 min)
+- Last 5 plans: 02-04 (2 min), 02-07 (3 min), 02-05 (2 min), 02-09 (6 min, incl verification)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -115,6 +115,8 @@ Recent decisions affecting current work:
 - [02-05]: ARQ pool in app.state for endpoint access to job queue
 - [02-05]: Non-blocking enqueue (graceful failure if Redis unavailable)
 - [02-05]: Backlog cron catches any missed captures
+- [02-09]: Model cache to /tmp (avoids volume permission issues, re-downloads on restart)
+- [02-09]: OpenCV system libs added to Dockerfile for EasyOCR support
 
 ### Pending Todos
 
@@ -126,6 +128,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-24T22:30:00Z
-Stopped at: Completed 02-05-PLAN.md (Upload Integration)
+Last session: 2026-01-25T00:00:00Z
+Stopped at: Completed Phase 2 (Human Verified)
 Resume file: None
