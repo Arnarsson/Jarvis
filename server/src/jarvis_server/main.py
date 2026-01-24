@@ -8,6 +8,8 @@ from typing import AsyncGenerator
 
 import structlog
 import uvicorn
+from arq import create_pool
+from arq.connections import RedisSettings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -45,9 +47,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     storage = get_storage()
     logger.info("storage_initialized", path=str(storage.base_path))
 
+    # Initialize ARQ Redis pool for background job enqueueing
+    redis_settings = RedisSettings(
+        host=settings.redis_host,
+        port=settings.redis_port,
+    )
+    app.state.arq_pool = await create_pool(redis_settings)
+    logger.info(
+        "arq_pool_initialized",
+        redis_host=settings.redis_host,
+        redis_port=settings.redis_port,
+    )
+
     yield
 
     # Shutdown
+    await app.state.arq_pool.close()
     logger.info("server_stopping")
 
 

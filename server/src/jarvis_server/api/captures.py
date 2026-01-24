@@ -10,7 +10,7 @@ from functools import lru_cache
 from uuid import uuid4
 
 import structlog
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -79,6 +79,7 @@ class CaptureDetail(BaseModel):
 
 @router.post("/", response_model=CaptureResponse)
 async def upload_capture(
+    request: Request,
     file: UploadFile = File(...),
     metadata: str = Form(...),
     db: AsyncSession = Depends(get_db),
@@ -89,6 +90,10 @@ async def upload_capture(
     Accepts multipart form data with:
     - file: JPEG image file
     - metadata: JSON string containing CaptureMetadata fields
+
+    The capture is stored immediately and queued for background processing
+    (OCR and embedding). The response returns immediately without waiting
+    for processing to complete.
 
     Returns the capture ID and storage path.
     """
@@ -155,6 +160,15 @@ async def upload_capture(
         # Try to clean up the stored file
         await storage.delete(filepath)
         raise HTTPException(status_code=500, detail="Failed to save capture metadata")
+
+    # Queue for background processing (OCR and embedding)
+    try:
+        arq_pool = request.app.state.arq_pool
+        await arq_pool.enqueue_job("process_capture", capture_id)
+        log.info("capture_queued_for_processing")
+    except Exception as e:
+        # Log but don't fail the upload - processing can be retried via backlog cron
+        log.warning("failed_to_queue_capture", error=str(e))
 
     return CaptureResponse(
         id=capture_id,
