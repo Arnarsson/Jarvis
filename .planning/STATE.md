@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 2 of 7 (Searchable Memory - RAG Core)
-Plan: 3 of 4 in current phase
-Status: In progress
-Last activity: 2026-01-24 -- Completed 02-02-PLAN.md (Processing Modules)
+Plan: 4 of 4 in current phase
+Status: Phase complete
+Last activity: 2026-01-24 -- Completed 02-04-PLAN.md (Hybrid Search API)
 
-Progress: [###############---] 83%
+Progress: [##################] 100% (Phase 2)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 15
+- Total plans completed: 17
 - Average duration: 3 min
-- Total execution time: 41 min
+- Total execution time: 44 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01 | 12 | 34 min | 2.8 min |
-| 02 | 3 | 7 min | 2.3 min |
+| 02 | 5 | 10 min | 2.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-11 (6 min), 01-12 (2 min), 02-01 (1 min), 02-06 (2 min), 02-02 (4 min)
+- Last 5 plans: 02-01 (1 min), 02-06 (2 min), 02-02 (4 min), 02-08 (1 min), 02-04 (2 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -100,6 +100,15 @@ Recent decisions affecting current work:
 - [02-02]: SPLADE for sparse embeddings (learned sparse, better than TF-IDF)
 - [02-02]: Lazy model loading (avoid 5-10s startup delay on import)
 - [02-02]: lru_cache singleton pattern for processors
+- [02-08]: ISO timestamp cursor for pagination (efficient, deterministic ordering)
+- [02-08]: SQL date() function for grouping captures by day (database-level aggregation)
+- [02-03]: max_jobs=5 to limit concurrent OCR jobs (memory intensive)
+- [02-03]: job_timeout=300s (5 min) per capture for OCR+embedding
+- [02-03]: Cron every 6 hours for backlog processing
+- [02-03]: AsyncSessionLocal for DB access in ARQ tasks (direct factory access)
+- [02-04]: Prefetch 5x limit from each vector type for quality RRF fusion
+- [02-04]: Filters at Qdrant level (not post-filtering) for efficiency
+- [02-04]: Graceful fallback for missing/malformed payload timestamps
 
 ### Pending Todos
 
@@ -111,6 +120,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-24T22:09:43Z
-Stopped at: Completed 02-02-PLAN.md (Processing Modules)
+Last session: 2026-01-24T22:12:51Z
+Stopped at: Completed 02-08-PLAN.md (Timeline API)
 Resume file: None
