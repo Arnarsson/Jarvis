@@ -150,14 +150,14 @@ def start(
         # Import here to avoid circular imports and reduce startup time
         from jarvis.capture.screenshot import ScreenCapture
         from jarvis.monitor.window import WindowMonitor, ExclusionFilter
-        from jarvis.monitor.idle import IdleMonitor
+        from jarvis.monitor.idle import IdleDetector
         from jarvis.capture.change import ChangeDetector
 
         # Initialize components
         screen_capture = ScreenCapture(jpeg_quality=settings.jpeg_quality)
         window_monitor = WindowMonitor()
         exclusion_filter = ExclusionFilter(settings.load_exclusions())
-        idle_monitor = IdleMonitor(idle_threshold=settings.idle_threshold)
+        idle_monitor = IdleDetector(idle_threshold=settings.idle_threshold)
         change_detector = ChangeDetector()
 
         if not background:
