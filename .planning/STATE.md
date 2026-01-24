@@ -10,27 +10,27 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 1 of 7 (Privacy-First Capture Foundation)
-Plan: 11 of TBD in current phase
+Plan: 11 of 13 in current phase
 Status: In progress
-Last activity: 2026-01-24 -- Completed 01-08-PLAN.md (Capture Engine Integration)
+Last activity: 2026-01-24 -- Completed 01-11-PLAN.md (Security Foundations)
 
-Progress: [######....] ~60%
+Progress: [########..] ~85%
 
 ## Performance Metrics
 
 **Velocity:**
 - Total plans completed: 11
-- Average duration: 2 min
-- Total execution time: 26 min
+- Average duration: 3 min
+- Total execution time: 32 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01 | 11 | 26 min | 2.4 min |
+| 01 | 11 | 32 min | 2.9 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-06 (3 min), 01-07 (3 min), 01-09 (2 min), 01-10 (4 min), 01-08 (4 min)
+- Last 5 plans: 01-07 (3 min), 01-09 (2 min), 01-10 (4 min), 01-08 (4 min), 01-11 (6 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -82,6 +82,10 @@ Recent decisions affecting current work:
 - [01-08]: Dated directory structure for captures (YYYY/MM/DD/HHMMSS_monitor.jpg)
 - [01-08]: Callback pattern for capture/skip/state events
 - [01-08]: Background upload worker with 5-second batch interval
+- [01-11]: python-json-logger for agent (simpler, already in deps)
+- [01-11]: structlog for server (richer context, request tracking)
+- [01-11]: Lazy Presidio initialization to avoid 5-10s startup delay
+- [01-11]: Custom regex patterns for API keys not covered by Presidio
 
 ### Pending Todos
 
@@ -93,6 +97,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-24T20:55:49Z
-Stopped at: Completed 01-08-PLAN.md (Capture Engine Integration)
+Last session: 2026-01-24T20:57:54Z
+Stopped at: Completed 01-11-PLAN.md (Security Foundations)
 Resume file: None
