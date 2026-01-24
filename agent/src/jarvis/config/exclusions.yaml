@@ -1,0 +1,42 @@
+# Jarvis Exclusion Rules
+# =====================
+#
+# Applications and window titles listed here will NEVER be captured.
+# This protects your sensitive information from being recorded.
+#
+# How matching works:
+# - app_names: Case-insensitive substring match against application name
+# - window_titles: Case-insensitive substring match against window title
+#
+# Example: "1password" matches "1Password", "1Password 8", etc.
+#
+# Add your banking apps, password managers, or any sensitive applications
+# to this list.
+
+# Applications to exclude (by name)
+app_names:
+  # Password managers
+  - "1password"
+  - "bitwarden"
+  - "lastpass"
+  - "keepass"
+  - "keepassxc"
+  - "keychain access"  # macOS Keychain
+  - "gnome-keyring"
+  - "seahorse"  # GNOME Passwords and Keys
+
+  # Add your banking apps here:
+  # - "chase"
+  # - "wells fargo"
+  # - "bank of america"
+
+# Window titles to exclude (substring match)
+window_titles:
+  # Private browsing modes
+  - "private browsing"  # Firefox
+  - "incognito"         # Chrome
+  - "inprivate"         # Edge
+
+  # Add sensitive window titles here:
+  # - "tax return"
+  # - "medical records"
