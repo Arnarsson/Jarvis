@@ -9,17 +9,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv for fast dependency installation
-RUN pip install --no-cache-dir uv
-
 # Create working directory
 WORKDIR /app
 
-# Copy dependency files
-COPY pyproject.toml uv.lock ./
+# Copy dependency files and source
+COPY pyproject.toml ./
+COPY src/ ./src/
 
-# Install dependencies
-RUN uv sync --frozen --no-dev
+# Create virtual environment and install dependencies
+RUN python -m venv /app/.venv \
+    && /app/.venv/bin/pip install --no-cache-dir --upgrade pip \
+    && /app/.venv/bin/pip install --no-cache-dir .
 
 # Production stage
 FROM python:3.11-slim
