@@ -52,8 +52,8 @@ COPY src/ ./src/
 COPY alembic/ ./alembic/
 COPY alembic.ini ./
 
-# Create data directory for captures
-RUN mkdir -p /data/captures && chown -R jarvis:jarvis /data
+# Create data directories for captures and model cache
+RUN mkdir -p /data/captures /data/models && chown -R jarvis:jarvis /data
 
 # Set environment variables
 ENV PATH="/app/.venv/bin:$PATH"

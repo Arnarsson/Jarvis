@@ -50,9 +50,12 @@ services:
       - JARVIS_REDIS_PORT=6379
       - JARVIS_STORAGE_PATH=/data/captures
       - JARVIS_LOG_LEVEL=${JARVIS_LOG_LEVEL:-INFO}
+      # Model cache paths (use home dir for writable location)
+      - FASTEMBED_CACHE_PATH=/home/jarvis/.cache/fastembed
+      - EASYOCR_MODULE_PATH=/home/jarvis/.EasyOCR
     volumes:
       - captures:/data/captures
-      - model_cache:/data/models
+      - model_cache:/home/jarvis/.cache
     depends_on:
       postgres:
         condition: service_healthy
