@@ -1,0 +1,46 @@
+"""Server configuration with environment variable loading."""
+
+import functools
+from pathlib import Path
+
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    """Jarvis server settings.
+
+    All settings can be overridden via environment variables with JARVIS_ prefix.
+    Example: JARVIS_DATABASE_URL, JARVIS_LOG_LEVEL
+    """
+
+    # Database
+    database_url: str = "postgresql+asyncpg://jarvis:jarvis@localhost:5432/jarvis"
+
+    # Vector storage
+    qdrant_host: str = "localhost"
+    qdrant_port: int = 6333
+
+    # File storage
+    storage_path: Path = Path("/data/captures")
+
+    # Logging
+    log_level: str = "INFO"
+
+    # CORS
+    cors_origins: list[str] = ["*"]
+
+    model_config = {
+        "env_prefix": "JARVIS_",
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+    }
+
+
+@functools.lru_cache
+def get_settings() -> Settings:
+    """Get cached settings instance.
+
+    Settings are loaded once and cached for the lifetime of the process.
+    Use this function for dependency injection in FastAPI.
+    """
+    return Settings()
