@@ -158,6 +158,7 @@ def start(
         window_monitor = WindowMonitor()
         exclusion_filter = ExclusionFilter(settings.load_exclusions())
         idle_monitor = IdleDetector(idle_threshold=settings.idle_threshold)
+        idle_monitor.start()
         change_detector = ChangeDetector()
 
         if not background:
@@ -174,7 +175,7 @@ def start(
                 continue
 
             # Check idle
-            if idle_monitor.check_idle():
+            if idle_monitor.is_idle():
                 time.sleep(capture_interval)
                 continue
 
