@@ -4,6 +4,7 @@ import typer
 
 from jarvis import __version__
 from jarvis.cli_commands.capture import capture_app
+from jarvis.cli_commands.config import config_app
 from jarvis.cli_commands.status import status_command
 
 app = typer.Typer(
@@ -14,6 +15,7 @@ app = typer.Typer(
 
 # Register subcommands
 app.add_typer(capture_app, name="capture")
+app.add_typer(config_app, name="config")
 
 
 def version_callback(value: bool) -> None:
