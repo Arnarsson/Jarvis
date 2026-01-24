@@ -1,8 +1,11 @@
-"""Multi-monitor screenshot capture using mss library."""
+"""Multi-monitor screenshot capture with X11 and Wayland support."""
 
+import os
+import shutil
+import subprocess
+import tempfile
 from io import BytesIO
 
-import mss
 from PIL import Image
 
 
@@ -27,8 +30,22 @@ def compress_to_jpeg(img: Image.Image, quality: int = 80) -> bytes:
     return buffer.getvalue()
 
 
+def _is_wayland() -> bool:
+    """Check if running on Wayland."""
+    return os.environ.get("XDG_SESSION_TYPE") == "wayland" or "WAYLAND_DISPLAY" in os.environ
+
+
+def _has_grim() -> bool:
+    """Check if grim is available for Wayland screenshots."""
+    return shutil.which("grim") is not None
+
+
 class ScreenCapture:
-    """Captures screenshots from monitors using mss.
+    """Captures screenshots from monitors.
+
+    Automatically detects X11 vs Wayland and uses appropriate backend:
+    - X11: Uses mss library for fast capture
+    - Wayland: Uses grim command-line tool
 
     Provides high-performance multi-monitor screenshot capture with
     JPEG compression for efficient storage.
@@ -41,17 +58,23 @@ class ScreenCapture:
             jpeg_quality: JPEG compression quality (1-100)
         """
         self.jpeg_quality = jpeg_quality
+        self._use_wayland = _is_wayland() and _has_grim()
 
     def get_monitors(self) -> list[dict]:
         """Get list of monitor geometries.
 
         Returns:
             List of monitor dicts with keys: left, top, width, height
-            Note: Skips monitors[0] which is "all monitors combined"
         """
-        with mss.mss() as sct:
-            # monitors[0] is "all combined", monitors[1:] are individual
-            return [dict(m) for m in sct.monitors[1:]]
+        if self._use_wayland:
+            # On Wayland, grim captures all outputs at once
+            # Return a single "virtual" monitor representing full capture
+            return [{"left": 0, "top": 0, "width": 0, "height": 0}]
+        else:
+            import mss
+            with mss.mss() as sct:
+                # monitors[0] is "all combined", monitors[1:] are individual
+                return [dict(m) for m in sct.monitors[1:]]
 
     def capture_monitor(self, monitor_index: int) -> tuple[Image.Image, bytes]:
         """Capture a specific monitor.
@@ -64,7 +87,47 @@ class ScreenCapture:
 
         Raises:
             IndexError: If monitor_index is out of range
+            RuntimeError: If capture fails
         """
+        if self._use_wayland:
+            return self._capture_wayland()
+        else:
+            return self._capture_x11(monitor_index)
+
+    def _capture_wayland(self) -> tuple[Image.Image, bytes]:
+        """Capture screenshot using grim on Wayland."""
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
+            tmpfile = f.name
+
+        try:
+            # Use grim to capture to temp file
+            result = subprocess.run(
+                ["grim", "-t", "jpeg", "-q", str(self.jpeg_quality), tmpfile],
+                capture_output=True,
+                timeout=10,
+            )
+            if result.returncode != 0:
+                raise RuntimeError(f"grim failed: {result.stderr.decode()}")
+
+            # Load the captured image
+            img = Image.open(tmpfile)
+            img.load()  # Force load before we delete the file
+
+            # Read JPEG bytes
+            with open(tmpfile, "rb") as f:
+                jpeg_bytes = f.read()
+
+            return img, jpeg_bytes
+        finally:
+            # Clean up temp file
+            try:
+                os.unlink(tmpfile)
+            except OSError:
+                pass
+
+    def _capture_x11(self, monitor_index: int) -> tuple[Image.Image, bytes]:
+        """Capture screenshot using mss on X11."""
+        import mss
         with mss.mss() as sct:
             # monitors[0] is "all combined", so +1 for actual monitor
             monitors = sct.monitors[1:]

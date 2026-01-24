@@ -42,6 +42,7 @@ class IdleDetector:
         self._last_activity: float = 0.0
         self._lock = threading.Lock()
         self._running = False
+        self._disabled = False  # True if pynput fails (e.g., on Wayland)
         self._mouse_listener: mouse.Listener | None = None
         self._keyboard_listener: keyboard.Listener | None = None
 
@@ -59,8 +60,10 @@ class IdleDetector:
 
         Returns:
             True if time since last activity exceeds idle_threshold,
-            False otherwise.
+            False otherwise. Always returns False if disabled.
         """
+        if self._disabled:
+            return False  # Can't detect idle, assume not idle
         with self._lock:
             if self._last_activity == 0.0:
                 return False
@@ -86,7 +89,8 @@ class IdleDetector:
 
         Note:
             On macOS, this requires Accessibility permissions.
-            On Linux, requires X11 or appropriate permissions.
+            On Linux with X11, requires appropriate permissions.
+            On Wayland, pynput may not work - idle detection will be disabled.
         """
         if self._running:
             return
@@ -94,22 +98,29 @@ class IdleDetector:
         with self._lock:
             self._last_activity = time.monotonic()
 
-        # Create mouse listener
-        self._mouse_listener = mouse.Listener(
-            on_move=self._on_activity,
-            on_click=self._on_activity,
-            on_scroll=self._on_activity,
-        )
+        try:
+            # Create mouse listener
+            self._mouse_listener = mouse.Listener(
+                on_move=self._on_activity,
+                on_click=self._on_activity,
+                on_scroll=self._on_activity,
+                suppress=False,
+            )
 
-        # Create keyboard listener
-        self._keyboard_listener = keyboard.Listener(
-            on_press=self._on_activity,
-        )
+            # Create keyboard listener
+            self._keyboard_listener = keyboard.Listener(
+                on_press=self._on_activity,
+                suppress=False,
+            )
 
-        # Start listeners
-        self._mouse_listener.start()
-        self._keyboard_listener.start()
-        self._running = True
+            # Start listeners
+            self._mouse_listener.start()
+            self._keyboard_listener.start()
+            self._running = True
+        except Exception:
+            # pynput may fail on Wayland - disable idle detection
+            self._running = False
+            self._disabled = True
 
     def stop(self) -> None:
         """Stop monitoring for input activity.
