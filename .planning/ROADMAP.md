@@ -12,7 +12,7 @@ Jarvis delivers on its core promise of "never lose context" through a seven-phas
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Privacy-First Capture Foundation** - Desktop agent captures screens, server infrastructure deployed, security foundations established
+- [x] **Phase 1: Privacy-First Capture Foundation** - Desktop agent captures screens, server infrastructure deployed, security foundations established
 - [ ] **Phase 2: Searchable Memory (RAG Core)** - OCR pipeline processes captures, embeddings enable semantic search across all content
 - [ ] **Phase 3: MCP Server & Claude Code** - Claude Code can query Jarvis memory and get caught up on any topic
 - [ ] **Phase 4: Calendar & Meeting Intelligence** - Calendar sync enables meeting detection, audio transcription, summaries and pre-meeting briefs
@@ -152,7 +152,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Privacy-First Capture Foundation | 0/13 | Planning complete | - |
+| 1. Privacy-First Capture Foundation | 13/13 | **Complete** | 2026-01-24 |
 | 2. Searchable Memory (RAG Core) | 0/TBD | Not started | - |
 | 3. MCP Server & Claude Code | 0/TBD | Not started | - |
 | 4. Calendar & Meeting Intelligence | 0/TBD | Not started | - |
@@ -163,4 +163,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 ---
 *Roadmap created: 2026-01-24*
 *Phase 1 planned: 2026-01-24*
+*Phase 1 completed: 2026-01-24*
 *Coverage: 50/50 v1 requirements mapped*
