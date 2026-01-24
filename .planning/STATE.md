@@ -10,27 +10,27 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 1 of 7 (Privacy-First Capture Foundation)
-Plan: 9 of TBD in current phase
+Plan: 10 of TBD in current phase
 Status: In progress
-Last activity: 2026-01-24 -- Completed 01-09-PLAN.md (System Tray Interface)
+Last activity: 2026-01-24 -- Completed 01-10-PLAN.md (CLI Interface)
 
-Progress: [#####.....] ~50%
+Progress: [######....] ~60%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
+- Total plans completed: 10
 - Average duration: 2 min
-- Total execution time: 18 min
+- Total execution time: 22 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01 | 9 | 18 min | 2.0 min |
+| 01 | 10 | 22 min | 2.2 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-05 (2 min), 01-06 (3 min), 01-07 (3 min), 01-08 (skipped), 01-09 (2 min)
+- Last 5 plans: 01-06 (3 min), 01-07 (3 min), 01-08 (skipped), 01-09 (2 min), 01-10 (4 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -73,6 +73,10 @@ Recent decisions affecting current work:
 - [01-09]: Protocol pattern for CaptureOrchestratorProtocol (decouples tray from orchestrator)
 - [01-09]: Material Design RGB colors for cross-theme visibility
 - [01-09]: Standalone mode support when no orchestrator connected
+- [01-10]: PID file at ~/.local/share/jarvis/agent.pid for process management
+- [01-10]: Pause signal via file touch (~/.local/share/jarvis/agent.paused)
+- [01-10]: Config values set via environment variables (JARVIS_ prefix)
+- [01-10]: Exclusions saved to user YAML file, merged with bundled defaults
 
 ### Pending Todos
 
@@ -84,6 +88,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-24T20:54:08Z
-Stopped at: Completed 01-09-PLAN.md (System Tray Interface)
+Last session: 2026-01-24T20:55:57Z
+Stopped at: Completed 01-10-PLAN.md (CLI Interface)
 Resume file: None
