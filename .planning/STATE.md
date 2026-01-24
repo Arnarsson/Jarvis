@@ -52,6 +52,9 @@ Recent decisions affecting current work:
 - [01-02]: Hatchling build backend for server package (modern, fast, good src layout)
 - [01-02]: SQLAlchemy async_sessionmaker with expire_on_commit=False for API patterns
 - [01-02]: pool_pre_ping=True for connection health verification
+- [01-03]: dhash over phash for speed (sufficient for screenshot change detection)
+- [01-03]: time.monotonic() for interval tracking (immune to clock changes)
+- [01-03]: Primary monitor only in capture_active() - orchestrator will enhance
 - [01-04]: UUID as string (36 chars) for cross-database portability
 - [01-04]: Timestamp index for time-range query performance
 - [01-04]: Date-partitioned storage ({YYYY}/{MM}/{DD}/{id}.jpg) for easy archival
