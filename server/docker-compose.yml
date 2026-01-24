@@ -36,6 +36,38 @@ services:
       retries: 3
       start_period: 10s
 
+  jarvis-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jarvis-worker
+    command: arq jarvis_server.processing.worker.WorkerSettings
+    environment:
+      - JARVIS_DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-jarvis}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-jarvis}
+      - JARVIS_QDRANT_HOST=qdrant
+      - JARVIS_QDRANT_PORT=6333
+      - JARVIS_REDIS_HOST=redis
+      - JARVIS_REDIS_PORT=6379
+      - JARVIS_STORAGE_PATH=/data/captures
+      - JARVIS_LOG_LEVEL=${JARVIS_LOG_LEVEL:-INFO}
+    volumes:
+      - captures:/data/captures
+      - model_cache:/data/models
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    networks:
+      - jarvis-net
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+
   postgres:
     image: postgres:15-alpine
     container_name: jarvis-postgres
@@ -93,6 +125,8 @@ volumes:
     name: jarvis-redis-data
   captures:
     name: jarvis-captures
+  model_cache:
+    name: jarvis-model-cache
 
 networks:
   jarvis-net:
