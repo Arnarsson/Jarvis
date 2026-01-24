@@ -45,6 +45,7 @@ dev = [
 
 [project.scripts]
 jarvis-server = "jarvis_server.main:run"
+jarvis-worker = "arq:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/jarvis_server"]
