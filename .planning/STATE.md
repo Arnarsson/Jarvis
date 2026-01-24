@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 2 of 7 (Searchable Memory - RAG Core)
-Plan: 2 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: In progress
-Last activity: 2026-01-24 -- Completed 02-06-PLAN.md (AI Chat Export Parsers)
+Last activity: 2026-01-24 -- Completed 02-02-PLAN.md (Processing Modules)
 
-Progress: [##############----] 78%
+Progress: [###############---] 83%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14
+- Total plans completed: 15
 - Average duration: 3 min
-- Total execution time: 37 min
+- Total execution time: 41 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01 | 12 | 34 min | 2.8 min |
-| 02 | 2 | 3 min | 1.5 min |
+| 02 | 3 | 7 min | 2.3 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-08 (4 min), 01-11 (6 min), 01-12 (2 min), 02-01 (1 min), 02-06 (2 min)
+- Last 5 plans: 01-11 (6 min), 01-12 (2 min), 02-01 (1 min), 02-06 (2 min), 02-02 (4 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -96,6 +96,10 @@ Recent decisions affecting current work:
 - [02-06]: orjson for fast JSON parsing of large exports
 - [02-06]: Iterator[Conversation] pattern for memory-efficient parsing
 - [02-06]: Flexible field name handling for export format variations
+- [02-02]: BAAI/bge-small-en-v1.5 for dense embeddings (384-dim, fast, good quality)
+- [02-02]: SPLADE for sparse embeddings (learned sparse, better than TF-IDF)
+- [02-02]: Lazy model loading (avoid 5-10s startup delay on import)
+- [02-02]: lru_cache singleton pattern for processors
 
 ### Pending Todos
 
@@ -107,6 +111,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-24T22:08:12Z
-Stopped at: Completed 02-06-PLAN.md (AI Chat Export Parsers)
+Last session: 2026-01-24T22:09:43Z
+Stopped at: Completed 02-02-PLAN.md (Processing Modules)
 Resume file: None
