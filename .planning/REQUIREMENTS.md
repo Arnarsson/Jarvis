@@ -1,7 +1,7 @@
 # Requirements: Jarvis
 
 **Defined:** 2026-01-24
-**Core Value:** Never lose context — whether away 2 hours or 2 months, Jarvis catches you up on any project, decision, or thread.
+**Core Value:** Never lose context -- whether away 2 hours or 2 months, Jarvis catches you up on any project, decision, or thread.
 
 ## v1 Requirements
 
@@ -66,7 +66,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **AUTO-01**: Pattern detection identifies repeated action sequences
 - [ ] **AUTO-02**: Suggest mode proposes automations for user approval
 - [ ] **AUTO-03**: Auto-execute mode runs approved workflows automatically
-- [ ] **AUTO-04**: Tiered trust system (observe → suggest → auto) with explicit promotion
+- [ ] **AUTO-04**: Tiered trust system (observe -> suggest -> auto) with explicit promotion
 - [ ] **AUTO-05**: Destructive actions never auto-execute (require human approval)
 - [ ] **AUTO-06**: False positive tracking suspends automation above threshold
 - [ ] **AUTO-07**: Undo capability for 24 hours on automated actions
@@ -128,7 +128,7 @@ Explicitly excluded. Documented to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
-| Slack integration | User preference — explicitly excluded |
+| Slack integration | User preference -- explicitly excluded |
 | Real-time meeting coaching | High complexity, defer to v2+ |
 | Mobile native app | Web UI over Tailscale is sufficient |
 | Public access / auth system | Tailscale-only access, no public exposure needed |
@@ -142,62 +142,62 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CAPT-01 | TBD | Pending |
-| CAPT-02 | TBD | Pending |
-| CAPT-03 | TBD | Pending |
-| CAPT-04 | TBD | Pending |
-| CAPT-05 | TBD | Pending |
-| CAPT-06 | TBD | Pending |
-| OCR-01 | TBD | Pending |
-| OCR-02 | TBD | Pending |
-| OCR-03 | TBD | Pending |
-| OCR-04 | TBD | Pending |
-| SRCH-01 | TBD | Pending |
-| SRCH-02 | TBD | Pending |
-| SRCH-03 | TBD | Pending |
-| SRCH-04 | TBD | Pending |
-| SRCH-05 | TBD | Pending |
-| SEC-01 | TBD | Pending |
-| SEC-02 | TBD | Pending |
-| SEC-03 | TBD | Pending |
-| SEC-04 | TBD | Pending |
-| MCP-01 | TBD | Pending |
-| MCP-02 | TBD | Pending |
-| MCP-03 | TBD | Pending |
-| MCP-04 | TBD | Pending |
-| MCP-05 | TBD | Pending |
-| CAL-01 | TBD | Pending |
-| CAL-02 | TBD | Pending |
-| CAL-03 | TBD | Pending |
-| CAL-04 | TBD | Pending |
-| CAL-05 | TBD | Pending |
-| CAL-06 | TBD | Pending |
-| EMAIL-01 | TBD | Pending |
-| EMAIL-02 | TBD | Pending |
-| EMAIL-03 | TBD | Pending |
-| AUTO-01 | TBD | Pending |
-| AUTO-02 | TBD | Pending |
-| AUTO-03 | TBD | Pending |
-| AUTO-04 | TBD | Pending |
-| AUTO-05 | TBD | Pending |
-| AUTO-06 | TBD | Pending |
-| AUTO-07 | TBD | Pending |
-| UI-01 | TBD | Pending |
-| UI-02 | TBD | Pending |
-| UI-03 | TBD | Pending |
-| UI-04 | TBD | Pending |
-| UI-05 | TBD | Pending |
-| INFRA-01 | TBD | Pending |
-| INFRA-02 | TBD | Pending |
-| INFRA-03 | TBD | Pending |
-| INFRA-04 | TBD | Pending |
-| INFRA-05 | TBD | Pending |
+| CAPT-01 | Phase 1 | Pending |
+| CAPT-02 | Phase 1 | Pending |
+| CAPT-03 | Phase 1 | Pending |
+| CAPT-04 | Phase 1 | Pending |
+| CAPT-05 | Phase 1 | Pending |
+| CAPT-06 | Phase 1 | Pending |
+| OCR-01 | Phase 2 | Pending |
+| OCR-02 | Phase 2 | Pending |
+| OCR-03 | Phase 2 | Pending |
+| OCR-04 | Phase 2 | Pending |
+| SRCH-01 | Phase 2 | Pending |
+| SRCH-02 | Phase 2 | Pending |
+| SRCH-03 | Phase 2 | Pending |
+| SRCH-04 | Phase 2 | Pending |
+| SRCH-05 | Phase 2 | Pending |
+| SEC-01 | Phase 1 | Pending |
+| SEC-02 | Phase 1 | Pending |
+| SEC-03 | Phase 1 | Pending |
+| SEC-04 | Phase 1 | Pending |
+| MCP-01 | Phase 3 | Pending |
+| MCP-02 | Phase 3 | Pending |
+| MCP-03 | Phase 3 | Pending |
+| MCP-04 | Phase 3 | Pending |
+| MCP-05 | Phase 3 | Pending |
+| CAL-01 | Phase 4 | Pending |
+| CAL-02 | Phase 4 | Pending |
+| CAL-03 | Phase 4 | Pending |
+| CAL-04 | Phase 4 | Pending |
+| CAL-05 | Phase 4 | Pending |
+| CAL-06 | Phase 4 | Pending |
+| EMAIL-01 | Phase 5 | Pending |
+| EMAIL-02 | Phase 5 | Pending |
+| EMAIL-03 | Phase 5 | Pending |
+| AUTO-01 | Phase 6 | Pending |
+| AUTO-02 | Phase 6 | Pending |
+| AUTO-03 | Phase 6 | Pending |
+| AUTO-04 | Phase 6 | Pending |
+| AUTO-05 | Phase 6 | Pending |
+| AUTO-06 | Phase 6 | Pending |
+| AUTO-07 | Phase 6 | Pending |
+| UI-01 | Phase 7 | Pending |
+| UI-02 | Phase 7 | Pending |
+| UI-03 | Phase 7 | Pending |
+| UI-04 | Phase 7 | Pending |
+| UI-05 | Phase 7 | Pending |
+| INFRA-01 | Phase 1 | Pending |
+| INFRA-02 | Phase 1 | Pending |
+| INFRA-03 | Phase 1 | Pending |
+| INFRA-04 | Phase 1 | Pending |
+| INFRA-05 | Phase 1 | Pending |
 
 **Coverage:**
-- v1 requirements: 45 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 45
+- v1 requirements: 50 total
+- Mapped to phases: 50
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-01-24*
-*Last updated: 2026-01-24 after initial definition*
+*Last updated: 2026-01-24 after roadmap creation*
