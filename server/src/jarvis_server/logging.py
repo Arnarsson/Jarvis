@@ -238,7 +238,6 @@ def log_capture_received(
     """
     logger.info(
         "capture_received",
-        event="capture_received",
         capture_id=capture_id,
         file_size=file_size,
         client_ip=client_ip,
@@ -259,7 +258,6 @@ def log_capture_stored(
     """
     logger.info(
         "capture_stored",
-        event="capture_stored",
         capture_id=capture_id,
         filepath=filepath,
     )
@@ -281,7 +279,6 @@ def log_pii_detected(
     """
     logger.warning(
         "pii_detected",
-        event="pii_detected",
         capture_id=capture_id,
         pii_types=pii_types,
         count=count,
@@ -304,7 +301,6 @@ def log_api_error(
     """
     logger.error(
         "api_error",
-        event="api_error",
         endpoint=endpoint,
         error_type=error_type,
         message=message,
