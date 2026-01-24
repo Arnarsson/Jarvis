@@ -93,6 +93,9 @@ Recent decisions affecting current work:
 - [02-01]: 384-dim dense vectors for bge-small-en-v1.5 embedding model
 - [02-01]: Sparse vectors in-memory (on_disk=False) for performance
 - [02-01]: QdrantWrapper singleton via get_qdrant() with lru_cache
+- [02-06]: orjson for fast JSON parsing of large exports
+- [02-06]: Iterator[Conversation] pattern for memory-efficient parsing
+- [02-06]: Flexible field name handling for export format variations
 
 ### Pending Todos
 
@@ -104,6 +107,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-24T22:07:37Z
-Stopped at: Completed 02-01-PLAN.md (RAG Infrastructure)
+Last session: 2026-01-24T22:08:12Z
+Stopped at: Completed 02-06-PLAN.md (AI Chat Export Parsers)
 Resume file: None
