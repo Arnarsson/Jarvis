@@ -1,5 +1,6 @@
 """Meeting lifecycle API endpoints."""
 
+import json
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -419,3 +420,148 @@ async def record_consent(
     logger.info("consent_recorded", meeting_id=meeting_id)
 
     return {"status": "consent_recorded", "meeting_id": meeting_id}
+
+
+# --- Summary and Transcript Endpoints ---
+
+
+class ActionItemResponse(BaseModel):
+    """Response model for action items."""
+
+    task: str
+    owner: Optional[str]
+    due_date: Optional[str]
+    priority: str
+
+
+class SummaryResponse(BaseModel):
+    """Response model for meeting summaries."""
+
+    meeting_id: str
+    summary: str
+    action_items: list[ActionItemResponse]
+    transcript_available: bool
+    calendar_event_summary: Optional[str]
+
+
+@router.get("/summary/{meeting_id}", response_model=SummaryResponse)
+async def get_meeting_summary(
+    meeting_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> SummaryResponse:
+    """Get summary and action items for a meeting.
+
+    Args:
+        meeting_id: The meeting to get summary for
+
+    Returns:
+        Summary response with action items
+
+    Raises:
+        HTTPException 404: Meeting not found or no summary available
+    """
+    result = await db.execute(select(Meeting).where(Meeting.id == meeting_id))
+    meeting = result.scalar_one_or_none()
+
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+
+    if not meeting.summary:
+        raise HTTPException(status_code=404, detail="No summary available for this meeting")
+
+    # Get calendar event title if linked
+    event_summary = None
+    if meeting.calendar_event_id:
+        result = await db.execute(
+            select(CalendarEvent).where(CalendarEvent.id == meeting.calendar_event_id)
+        )
+        event = result.scalar_one_or_none()
+        if event:
+            event_summary = event.summary
+
+    # Parse action items
+    action_items = []
+    if meeting.action_items_json:
+        items = json.loads(meeting.action_items_json)
+        action_items = [ActionItemResponse(**item) for item in items]
+
+    return SummaryResponse(
+        meeting_id=meeting.id,
+        summary=meeting.summary,
+        action_items=action_items,
+        transcript_available=meeting.transcript is not None,
+        calendar_event_summary=event_summary,
+    )
+
+
+@router.get("/transcript/{meeting_id}")
+async def get_meeting_transcript(
+    meeting_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Get full transcript for a meeting.
+
+    Args:
+        meeting_id: The meeting to get transcript for
+
+    Returns:
+        Transcript data with meeting ID and status
+
+    Raises:
+        HTTPException 404: Meeting not found or no transcript available
+    """
+    result = await db.execute(select(Meeting).where(Meeting.id == meeting_id))
+    meeting = result.scalar_one_or_none()
+
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+
+    if not meeting.transcript:
+        raise HTTPException(status_code=404, detail="No transcript available for this meeting")
+
+    return {
+        "meeting_id": meeting.id,
+        "transcript": meeting.transcript,
+        "transcript_status": meeting.transcript_status,
+    }
+
+
+@router.post("/summarize/{meeting_id}")
+async def trigger_summarization(
+    meeting_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Manually trigger summarization for a meeting.
+
+    Useful for re-summarizing or if auto-queue failed.
+
+    Args:
+        meeting_id: The meeting to summarize
+
+    Returns:
+        Status with job ID
+
+    Raises:
+        HTTPException 404: Meeting not found
+        HTTPException 400: Meeting has no transcript
+        HTTPException 500: Failed to queue summarization
+    """
+    result = await db.execute(select(Meeting).where(Meeting.id == meeting_id))
+    meeting = result.scalar_one_or_none()
+
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+
+    if not meeting.transcript:
+        raise HTTPException(status_code=400, detail="Meeting has no transcript")
+
+    # Queue summarization task
+    try:
+        from jarvis_server.processing.tasks import get_arq_pool
+
+        pool = await get_arq_pool()
+        job = await pool.enqueue_job("summarize_meeting_task", meeting_id)
+        return {"status": "queued", "job_id": job.job_id, "meeting_id": meeting_id}
+    except Exception as e:
+        logger.error("summarization_queue_failed", meeting_id=meeting_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to queue summarization")
