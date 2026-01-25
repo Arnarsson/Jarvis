@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 4 of 7 (Calendar & Meeting Intelligence)
-Plan: 6 of 9 in current phase
+Plan: 7 of 9 in current phase
 Status: In progress
-Last activity: 2026-01-25 -- Completed 04-06-PLAN.md
+Last activity: 2026-01-25 -- Completed 04-07-PLAN.md
 
-Progress: [###########░░░░░░░░░] 52% (33/63 plans complete)
+Progress: [###########░░░░░░░░░] 54% (34/63 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 33
+- Total plans completed: 34
 - Average duration: 3 min
-- Total execution time: 92 min
+- Total execution time: 96 min
 
 **By Phase:**
 
@@ -30,10 +30,10 @@ Progress: [###########░░░░░░░░░] 52% (33/63 plans complete)
 | 01 | 13 | 34 min | 2.6 min |
 | 02 | 9 | 21 min | 2.3 min |
 | 03 | 5 | 15 min | 3.0 min |
-| 04 | 6 | 22 min | 3.7 min |
+| 04 | 7 | 26 min | 3.7 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-02 (3 min), 04-03 (4 min), 04-04 (5 min), 04-05 (3 min), 04-06 (3 min)
+- Last 5 plans: 04-03 (4 min), 04-04 (5 min), 04-05 (3 min), 04-06 (3 min), 04-07 (4 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -155,6 +155,10 @@ Recent decisions affecting current work:
 - [04-06]: VAD filter enabled by default (skip silence, faster processing)
 - [04-06]: Model size configurable via WHISPER_MODEL_SIZE env var (default: base)
 - [04-06]: GPU auto-detection with CPU fallback for portability
+- [04-07]: claude-sonnet-4-20250514 model for summarization (consistent with briefs)
+- [04-07]: Auto-queue summarization after transcription via ARQ redis context
+- [04-07]: Truncate transcripts >100k chars to stay within token limits
+- [04-07]: Store action items as JSON string in Meeting.action_items_json
 
 ### Pending Todos
 
@@ -166,6 +170,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-25T13:31:00Z
-Stopped at: Completed 04-06-PLAN.md
+Last session: 2026-01-25T13:31:59Z
+Stopped at: Completed 04-07-PLAN.md
 Resume file: None
