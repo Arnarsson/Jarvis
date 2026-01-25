@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Privacy-First Capture Foundation** - Desktop agent captures screens, server infrastructure deployed, security foundations established
 - [x] **Phase 2: Searchable Memory (RAG Core)** - OCR pipeline processes captures, embeddings enable semantic search across all content
-- [ ] **Phase 3: MCP Server & Claude Code** - Claude Code can query Jarvis memory and get caught up on any topic
+- [x] **Phase 3: MCP Server & Claude Code** - Claude Code can query Jarvis memory and get caught up on any topic
 - [ ] **Phase 4: Calendar & Meeting Intelligence** - Calendar sync enables meeting detection, audio transcription, summaries and pre-meeting briefs
 - [ ] **Phase 5: Email & Communication Context** - Email context integrated into memory and pre-meeting briefs
 - [ ] **Phase 6: Workflow Automation Engine** - Pattern detection identifies repeated workflows, tiered trust enables safe automation
@@ -82,11 +82,14 @@ Plans:
   3. MCP server connects via stdio transport and appears in Claude Code tool list
   4. All MCP calls are logged in audit trail
   5. Input validation prevents prompt injection attacks
-**Plans**: TBD
+**Plans**: 5 plans in 3 waves
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [x] 03-01-PLAN.md — MCP package foundation (pyproject.toml, FastMCP server, HTTP client)
+- [x] 03-02-PLAN.md — Input validators and audit logging infrastructure
+- [x] 03-03-PLAN.md — search_memory tool implementation
+- [x] 03-04-PLAN.md — catch_me_up tool implementation
+- [x] 03-05-PLAN.md — Integration testing and Claude Code configuration (checkpoint)
 
 ### Phase 4: Calendar & Meeting Intelligence
 **Goal**: User receives pre-meeting briefs and post-meeting summaries with action items
@@ -160,7 +163,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 |-------|----------------|--------|-----------|
 | 1. Privacy-First Capture Foundation | 13/13 | **Complete** | 2026-01-24 |
 | 2. Searchable Memory (RAG Core) | 9/9 | **Complete** | 2026-01-25 |
-| 3. MCP Server & Claude Code | 0/TBD | Not started | - |
+| 3. MCP Server & Claude Code | 5/5 | **Complete** | 2026-01-25 |
 | 4. Calendar & Meeting Intelligence | 0/TBD | Not started | - |
 | 5. Email & Communication Context | 0/TBD | Not started | - |
 | 6. Workflow Automation Engine | 0/TBD | Not started | - |
@@ -172,4 +175,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 *Phase 1 completed: 2026-01-24*
 *Phase 2 planned: 2026-01-24*
 *Phase 2 completed: 2026-01-25*
+*Phase 3 planned: 2026-01-25*
+*Phase 3 completed: 2026-01-25*
 *Coverage: 50/50 v1 requirements mapped*
