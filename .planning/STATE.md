@@ -181,6 +181,10 @@ Recent decisions affecting current work:
 - [07-01]: HTMX for partial page updates (server-rendered HTML)
 - [07-01]: Alpine.js for client-side state (lightweight, HTMX-friendly)
 - [07-01]: Jinja2 template inheritance pattern
+- [07-02]: Date picker dropdown with capture counts per day
+- [07-02]: Infinite scroll via IntersectionObserver and HTMX revealed trigger
+- [07-02]: Modal with prev/next navigation for chronological browsing
+- [07-02]: OCR text panel with copy-to-clipboard functionality
 - [07-03]: highlight_query Jinja2 filter with regex and markupsafe (XSS-safe)
 - [07-03]: Source badge colors: screen (blue), chatgpt (green), claude (orange), grok (purple), email (red)
 - [07-03]: 300ms debounce delay for HTMX search trigger
