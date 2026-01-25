@@ -3,21 +3,30 @@
 #
 # Prerequisites:
 # - Claude Code CLI installed (code.claude.com)
-# - jarvis-mcp package installed: pip install -e mcp/
 # - Jarvis server running at http://127.0.0.1:8000
 
 set -e
 
-echo "Configuring jarvis-memory MCP server for Claude Code..."
-
-# Get the project root (parent of mcp/)
+# Get the project root
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+MCP_DIR="$(dirname "$SCRIPT_DIR")"
+
+# Create venv and install if needed
+if [ ! -d "$MCP_DIR/.venv" ]; then
+  echo "Creating virtual environment..."
+  python -m venv "$MCP_DIR/.venv"
+  echo "Installing jarvis-mcp..."
+  "$MCP_DIR/.venv/bin/pip" install -e "$MCP_DIR"
+fi
+
+PYTHON="$MCP_DIR/.venv/bin/python"
+
+echo "Configuring jarvis-memory MCP server for Claude Code..."
 
 # Add MCP server to Claude Code (local scope = only this workspace)
 claude mcp add --transport stdio --scope local \
   --env JARVIS_API_URL=http://127.0.0.1:8000 \
-  jarvis-memory -- python -m jarvis_mcp.server
+  jarvis-memory -- "$PYTHON" -m jarvis_mcp.server
 
 echo ""
 echo "Configuration complete!"
