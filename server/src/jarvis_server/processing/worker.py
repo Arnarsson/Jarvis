@@ -9,6 +9,8 @@ from ..config import get_settings
 from ..vector.qdrant import get_qdrant, setup_captures_collection
 from .embeddings import get_embedding_processor
 from .ocr import get_ocr_processor
+from ..meetings.tasks import summarize_meeting_task
+from ..transcription.tasks import transcribe_meeting_task
 from .tasks import process_backlog, process_capture, sync_calendar_task
 
 logger = logging.getLogger(__name__)
@@ -27,7 +29,13 @@ class WorkerSettings:
     """ARQ worker settings for background processing."""
 
     # Register task functions
-    functions = [process_capture, process_backlog, sync_calendar_task]
+    functions = [
+        process_capture,
+        process_backlog,
+        sync_calendar_task,
+        transcribe_meeting_task,
+        summarize_meeting_task,
+    ]
 
     # Cron jobs for backlog processing
     cron_jobs = [
