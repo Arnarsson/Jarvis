@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 3 of 7 (MCP Server & Claude Code)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-01-25 -- Completed Phase 2 (Human Verified)
+Plan: 1 of 5 in current phase
+Status: In progress
+Last activity: 2026-01-25 -- Completed 03-01-PLAN.md
 
-Progress: [##################] 100% (Phase 2 Complete)
+Progress: [####################..] 85% (Phase 3: 1/5 plans)
 
 ## Performance Metrics
 
@@ -117,6 +117,10 @@ Recent decisions affecting current work:
 - [02-05]: Backlog cron catches any missed captures
 - [02-09]: Model cache to /tmp (avoids volume permission issues, re-downloads on restart)
 - [02-09]: OpenCV system libs added to Dockerfile for EasyOCR support
+- [03-01]: mcp[cli]>=1.26.0,<2 pinned for v1.x stability
+- [03-01]: structlog configured to stderr before any other imports (stdio transport)
+- [03-01]: httpx.AsyncClient with 25s timeout (margin for MCP 30s timeout)
+- [03-01]: Lazy singleton pattern for HTTP client initialization
 
 ### Pending Todos
 
@@ -128,6 +132,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-25T00:00:00Z
-Stopped at: Completed Phase 2 (Human Verified)
+Last session: 2026-01-25T11:27:00Z
+Stopped at: Completed 03-01-PLAN.md
 Resume file: None
