@@ -104,15 +104,15 @@ Plans:
 **Plans**: 9 plans in 4 waves
 
 Plans:
-- [ ] 04-01-PLAN.md — Google Calendar OAuth foundation and database schema
-- [ ] 04-02-PLAN.md — Calendar incremental sync service
-- [ ] 04-03-PLAN.md — Meeting detection via window title patterns
-- [ ] 04-04-PLAN.md — Pre-meeting brief generation with memory search
-- [ ] 04-05-PLAN.md — Meeting audio capture with consent gate
-- [ ] 04-06-PLAN.md — Speech-to-text transcription (faster-whisper)
-- [ ] 04-07-PLAN.md — Meeting summarization with action item extraction
-- [ ] 04-08-PLAN.md — MCP tools for calendar and meetings
-- [ ] 04-09-PLAN.md — End-to-end verification and integration testing (checkpoint)
+- [x] 04-01-PLAN.md — Google Calendar OAuth foundation and database schema
+- [x] 04-02-PLAN.md — Calendar incremental sync service
+- [x] 04-03-PLAN.md — Meeting detection via window title patterns
+- [x] 04-04-PLAN.md — Pre-meeting brief generation with memory search
+- [x] 04-05-PLAN.md — Meeting audio capture with consent gate
+- [x] 04-06-PLAN.md — Speech-to-text transcription (faster-whisper)
+- [x] 04-07-PLAN.md — Meeting summarization with action item extraction
+- [x] 04-08-PLAN.md — MCP tools for calendar and meetings
+- [x] 04-09-PLAN.md — End-to-end verification and integration testing (checkpoint)
 
 ### Phase 5: Email & Communication Context
 **Goal**: Email context is integrated into memory and enriches pre-meeting briefs
@@ -170,7 +170,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 1. Privacy-First Capture Foundation | 13/13 | **Complete** | 2026-01-24 |
 | 2. Searchable Memory (RAG Core) | 9/9 | **Complete** | 2026-01-25 |
 | 3. MCP Server & Claude Code | 5/5 | **Complete** | 2026-01-25 |
-| 4. Calendar & Meeting Intelligence | 0/9 | **Planned** | - |
+| 4. Calendar & Meeting Intelligence | 9/9 | **Complete** | 2026-01-25 |
 | 5. Email & Communication Context | 0/TBD | Not started | - |
 | 6. Workflow Automation Engine | 0/TBD | Not started | - |
 | 7. Web UI & Visualization | 0/TBD | Not started | - |
