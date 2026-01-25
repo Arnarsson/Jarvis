@@ -59,3 +59,9 @@ jarvis/
 5. **Docker volume mounts for secrets**: Files like credentials.json must be volume-mounted in docker-compose.yml. Named volumes don't see local files - use bind mounts (`./data/calendar:/data/calendar`)
 
 6. **Environment variables in Docker**: Pass through .env vars via `${VAR_NAME:-default}` in docker-compose.yml environment section
+
+7. **OAuth in Docker**: Docker containers can't open browsers. Use `server/scripts/oauth_helper.py` locally to generate token.json, which Docker can then use via volume mount
+
+8. **Hotfixing Docker without rebuild**: Copy files with `docker cp file.py container:/path/` then restart container. But model changes need migration rerun too
+
+9. **Database migrations**: When changing models, create/update migration in `alembic/versions/`, copy to container, run `docker exec container alembic upgrade head`
