@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page header -->
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Search</h1>
+        <p class="mt-1 text-sm text-gray-500">Find anything in your captures and conversations</p>
+    </div>
+
+    <!-- Search form -->
+    <div class="rounded-lg bg-white shadow">
+        <div class="p-6">
+            <form action="/search" method="get" class="space-y-4">
+                <div class="flex gap-4">
+                    <input type="text"
+                           name="q"
+                           placeholder="Search for anything..."
+                           class="flex-1 rounded-lg border border-gray-300 px-4 py-3 text-lg focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                    <button type="submit"
+                            class="rounded-lg bg-indigo-600 px-8 py-3 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                        Search
+                    </button>
+                </div>
+
+                <!-- Filters -->
+                <div class="flex flex-wrap gap-4 border-t border-gray-200 pt-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Date Range</label>
+                        <select class="mt-1 rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                            <option>Any time</option>
+                            <option>Today</option>
+                            <option>Last 7 days</option>
+                            <option>Last 30 days</option>
+                            <option>Custom range</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Type</label>
+                        <select class="mt-1 rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                            <option>All types</option>
+                            <option>Screenshots</option>
+                            <option>Conversations</option>
+                            <option>Meetings</option>
+                        </select>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Search results placeholder -->
+    <div class="rounded-lg bg-white shadow">
+        <div class="p-6">
+            <div class="flex items-center justify-center py-12 text-gray-500">
+                <div class="text-center">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">Search your data</h3>
+                    <p class="mt-1 text-sm text-gray-500">Enter a query above to search your captures and conversations</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

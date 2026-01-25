@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page header -->
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Settings</h1>
+        <p class="mt-1 text-sm text-gray-500">Configure your Jarvis installation</p>
+    </div>
+
+    <!-- Settings sections -->
+    <div class="space-y-6">
+        <!-- Capture settings -->
+        <div class="rounded-lg bg-white shadow">
+            <div class="border-b border-gray-200 px-4 py-5 sm:px-6">
+                <h2 class="text-lg font-medium text-gray-900">Capture Settings</h2>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <label class="text-sm font-medium text-gray-900">Capture Interval</label>
+                        <p class="text-sm text-gray-500">How often to take screenshots</p>
+                    </div>
+                    <select class="rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                        <option>5 seconds</option>
+                        <option>10 seconds</option>
+                        <option selected>30 seconds</option>
+                        <option>60 seconds</option>
+                    </select>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <label class="text-sm font-medium text-gray-900">Pause on Idle</label>
+                        <p class="text-sm text-gray-500">Stop capturing when no activity detected</p>
+                    </div>
+                    <button type="button" class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-indigo-600 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2" role="switch" aria-checked="true">
+                        <span class="translate-x-5 pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Privacy settings -->
+        <div class="rounded-lg bg-white shadow">
+            <div class="border-b border-gray-200 px-4 py-5 sm:px-6">
+                <h2 class="text-lg font-medium text-gray-900">Privacy</h2>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="text-sm font-medium text-gray-900">Excluded Applications</label>
+                    <p class="text-sm text-gray-500 mb-2">Screenshots won't be taken when these apps are active</p>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-800">
+                            1Password
+                            <button type="button" class="ml-1 text-gray-400 hover:text-gray-600">&times;</button>
+                        </span>
+                        <span class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-800">
+                            Private Browser
+                            <button type="button" class="ml-1 text-gray-400 hover:text-gray-600">&times;</button>
+                        </span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <label class="text-sm font-medium text-gray-900">OCR Text Anonymization</label>
+                        <p class="text-sm text-gray-500">Automatically redact sensitive data (SSN, credit cards, etc.)</p>
+                    </div>
+                    <button type="button" class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-indigo-600 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2" role="switch" aria-checked="true">
+                        <span class="translate-x-5 pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Integrations -->
+        <div class="rounded-lg bg-white shadow">
+            <div class="border-b border-gray-200 px-4 py-5 sm:px-6">
+                <h2 class="text-lg font-medium text-gray-900">Integrations</h2>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="flex items-center justify-between py-3 border-b border-gray-100">
+                    <div class="flex items-center space-x-3">
+                        <div class="h-10 w-10 rounded-lg bg-red-100 flex items-center justify-center">
+                            <span class="text-red-600 font-medium">G</span>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">Google Calendar</p>
+                            <p class="text-sm text-gray-500">Sync your calendar events</p>
+                        </div>
+                    </div>
+                    <button type="button" class="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200">
+                        Connect
+                    </button>
+                </div>
+                <div class="flex items-center justify-between py-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                            <span class="text-blue-600 font-medium">S</span>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">Slack</p>
+                            <p class="text-sm text-gray-500">Import conversations</p>
+                        </div>
+                    </div>
+                    <span class="text-sm text-gray-500">Coming soon</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Storage info -->
+        <div class="rounded-lg bg-white shadow">
+            <div class="border-b border-gray-200 px-4 py-5 sm:px-6">
+                <h2 class="text-lg font-medium text-gray-900">Storage</h2>
+            </div>
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium text-gray-900">Used Space</span>
+                    <span class="text-sm text-gray-500">12.4 GB of 100 GB</span>
+                </div>
+                <div class="h-2 w-full rounded-full bg-gray-200">
+                    <div class="h-2 rounded-full bg-indigo-600" style="width: 12.4%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
