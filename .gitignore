@@ -39,3 +39,7 @@ Thumbs.db
 # Jarvis specific
 *.log
 .env
+data/
+credentials.json
+client_secret*.json
+token.json

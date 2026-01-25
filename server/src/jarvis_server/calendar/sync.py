@@ -114,14 +114,26 @@ async def sync_calendar(db: AsyncSession) -> dict:
         # Process all pages
         all_items = events_result.get("items", [])
         while "nextPageToken" in events_result:
-            events_result = (
-                service.events()
-                .list(
-                    calendarId="primary",
-                    pageToken=events_result["nextPageToken"],
+            page_token = events_result["nextPageToken"]
+            if sync_token:
+                # Incremental sync pagination
+                events_result = (
+                    service.events()
+                    .list(calendarId="primary", pageToken=page_token)
+                    .execute()
                 )
-                .execute()
-            )
+            else:
+                # Full sync pagination - must include original params
+                events_result = (
+                    service.events()
+                    .list(
+                        calendarId="primary",
+                        pageToken=page_token,
+                        singleEvents=True,
+                        orderBy="startTime",
+                    )
+                    .execute()
+                )
             all_items.extend(events_result.get("items", []))
 
         # Process each event
@@ -173,6 +185,11 @@ async def sync_calendar(db: AsyncSession) -> dict:
         if e.resp.status == 410:
             # Sync token expired - full resync needed
             logger.warning("calendar_sync_token_expired")
+            await delete_sync_token(db, "calendar_primary")
+            return await sync_calendar(db)  # Retry with full sync
+        if e.resp.status == 400 and sync_token:
+            # Invalid sync token - full resync needed
+            logger.warning("calendar_sync_token_invalid")
             await delete_sync_token(db, "calendar_primary")
             return await sync_calendar(db)  # Retry with full sync
         raise

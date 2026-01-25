@@ -43,7 +43,7 @@ class CalendarEvent(Base):
         String(36), primary_key=True, default=lambda: str(uuid4())
     )
     google_event_id: Mapped[str] = mapped_column(
-        String(100), unique=True, nullable=False
+        String(255), unique=True, nullable=False
     )
     calendar_id: Mapped[str] = mapped_column(String(200), default="primary")
 
