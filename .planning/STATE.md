@@ -170,6 +170,9 @@ Recent decisions affecting current work:
 - [05-01]: gmail.readonly scope for v1 security
 - [05-01]: Separate email models from db/models.py (no circular import)
 - [05-01]: Email models imported in alembic/env.py for autogenerate
+- [05-02]: Gmail History API for incremental sync (efficient, only changed messages)
+- [05-02]: BeautifulSoup for HTML body extraction (fallback when text/plain unavailable)
+- [05-02]: Initial sync fetches last 30 days (balance completeness/performance)
 - [05-03]: Reuse EmbeddingProcessor for email embeddings (consistency with captures)
 - [05-03]: Store emails in same Qdrant collection with source="email" filter
 - [05-03]: text_preview formatted as "Email: {subject}\nFrom: {sender}"
