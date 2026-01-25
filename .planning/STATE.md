@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 5 of 7 (Email & Communication Context)
-Plan: 1 of 5 in current phase
+Plan: 3 of 5 in current phase
 Status: In progress
-Last activity: 2026-01-25 -- Completed 05-01-PLAN.md
+Last activity: 2026-01-25 -- Completed 05-03-PLAN.md
 
-Progress: [#############░░░░░░░] 60% (37/63 plans complete)
+Progress: [##############░░░░░░] 62% (39/63 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 37
+- Total plans completed: 39
 - Average duration: 3 min
-- Total execution time: 102 min
+- Total execution time: 106 min
 
 **By Phase:**
 
@@ -31,10 +31,10 @@ Progress: [#############░░░░░░░] 60% (37/63 plans complete)
 | 02 | 9 | 21 min | 2.3 min |
 | 03 | 5 | 15 min | 3.0 min |
 | 04 | 9 | 28 min | 3.1 min |
-| 05 | 1 | 4 min | 4.0 min |
+| 05 | 3 | 8 min | 2.7 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-06 (3 min), 04-07 (4 min), 04-08 (2 min), 04-09 (2 min), 05-01 (4 min)
+- Last 5 plans: 04-08 (2 min), 04-09 (2 min), 05-01 (4 min), 05-02 (2 min), 05-03 (2 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -170,6 +170,9 @@ Recent decisions affecting current work:
 - [05-01]: gmail.readonly scope for v1 security
 - [05-01]: Separate email models from db/models.py (no circular import)
 - [05-01]: Email models imported in alembic/env.py for autogenerate
+- [05-03]: Reuse EmbeddingProcessor for email embeddings (consistency with captures)
+- [05-03]: Store emails in same Qdrant collection with source="email" filter
+- [05-03]: text_preview formatted as "Email: {subject}\nFrom: {sender}"
 
 ### Pending Todos
 
@@ -181,7 +184,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-25T15:32:09Z
-Stopped at: Completed 05-01-PLAN.md
+Last session: 2026-01-25T15:36:18Z
+Stopped at: Completed 05-03-PLAN.md
 Resume file: None
-Next: 05-02-PLAN.md (Email sync)
+Next: 05-04-PLAN.md (Email MCP tools)
