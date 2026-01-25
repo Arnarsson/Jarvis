@@ -1,0 +1,150 @@
+<!-- Status cards showing service health -->
+<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <!-- Server Status -->
+    <div class="rounded-lg border border-gray-200 p-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-100">
+                    <svg class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 14.25h13.5m-13.5 0a3 3 0 01-3-3m3 3a3 3 0 100 6h13.5a3 3 0 100-6m-16.5-3a3 3 0 013-3h13.5a3 3 0 013 3m-19.5 0a4.5 4.5 0 01.9-2.7L5.737 5.1a3.375 3.375 0 012.7-1.35h7.126c1.062 0 2.062.5 2.7 1.35l2.587 3.45a4.5 4.5 0 01.9 2.7m-19.5 0h19.5" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-gray-900">Server</p>
+                    <p class="text-xs text-gray-500">v{{ server.version }}</p>
+                </div>
+            </div>
+            {% if server.status == 'healthy' %}
+            <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
+                <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 8 8">
+                    <circle cx="4" cy="4" r="3" />
+                </svg>
+                Healthy
+            </span>
+            {% else %}
+            <span class="inline-flex items-center rounded-full bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800">
+                <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 8 8">
+                    <circle cx="4" cy="4" r="3" />
+                </svg>
+                Degraded
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- PostgreSQL Status -->
+    <div class="rounded-lg border border-gray-200 p-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
+                    <svg class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-gray-900">PostgreSQL</p>
+                    <p class="text-xs text-gray-500">{{ postgres.captures_count }} captures</p>
+                </div>
+            </div>
+            {% if postgres.status == 'healthy' %}
+            <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
+                <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 8 8">
+                    <circle cx="4" cy="4" r="3" />
+                </svg>
+                Healthy
+            </span>
+            {% else %}
+            <span class="inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-800">
+                <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 8 8">
+                    <circle cx="4" cy="4" r="3" />
+                </svg>
+                Unhealthy
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Redis Status -->
+    <div class="rounded-lg border border-gray-200 p-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100">
+                    <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-gray-900">Redis</p>
+                    <p class="text-xs text-gray-500">Task queue</p>
+                </div>
+            </div>
+            {% if redis.status == 'healthy' %}
+            <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
+                <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 8 8">
+                    <circle cx="4" cy="4" r="3" />
+                </svg>
+                Healthy
+            </span>
+            {% else %}
+            <span class="inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-800">
+                <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 8 8">
+                    <circle cx="4" cy="4" r="3" />
+                </svg>
+                Unhealthy
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Qdrant Status -->
+    <div class="rounded-lg border border-gray-200 p-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100">
+                    <svg class="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-gray-900">Qdrant</p>
+                    <p class="text-xs text-gray-500">{{ qdrant.vectors_count }} vectors</p>
+                </div>
+            </div>
+            {% if qdrant.status == 'healthy' %}
+            <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
+                <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 8 8">
+                    <circle cx="4" cy="4" r="3" />
+                </svg>
+                Healthy
+            </span>
+            {% else %}
+            <span class="inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-800">
+                <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 8 8">
+                    <circle cx="4" cy="4" r="3" />
+                </svg>
+                Unhealthy
+            </span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Storage Stats -->
+<div class="mt-6 rounded-lg border border-gray-200 p-4">
+    <div class="flex items-center justify-between mb-4">
+        <h3 class="text-sm font-medium text-gray-900">Storage Usage</h3>
+        <span class="text-sm text-gray-500">{{ storage.used_formatted }} used</span>
+    </div>
+    <div class="h-2 w-full rounded-full bg-gray-200">
+        <div class="h-2 rounded-full bg-indigo-600" style="width: {{ storage.used_percent }}%"></div>
+    </div>
+    <p class="mt-2 text-xs text-gray-500">
+        {{ storage.captures_count }} screenshots stored
+        {% if storage.path %}in {{ storage.path }}{% endif %}
+    </p>
+</div>
+
+<!-- Last Check -->
+<p class="mt-4 text-xs text-gray-400 text-right">
+    Last checked: {{ checked_at }}
+</p>
