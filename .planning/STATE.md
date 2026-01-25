@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 4 of 7 (Calendar & Meeting Intelligence)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-01-25 -- Completed Phase 3 (Human Verified)
+Plan: 1 of 9 in current phase
+Status: In progress
+Last activity: 2026-01-25 -- Completed 04-01-PLAN.md
 
-Progress: [###########░░░░░░░░░] 43% (3/7 phases complete)
+Progress: [###########░░░░░░░░░] 44% (28/63 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 27
+- Total plans completed: 28
 - Average duration: 3 min
-- Total execution time: 70 min
+- Total execution time: 74 min
 
 **By Phase:**
 
@@ -30,9 +30,10 @@ Progress: [###########░░░░░░░░░] 43% (3/7 phases complete)
 | 01 | 13 | 34 min | 2.6 min |
 | 02 | 9 | 21 min | 2.3 min |
 | 03 | 5 | 15 min | 3.0 min |
+| 04 | 1 | 4 min | 4.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (3 min), 03-02 (3 min), 03-03 (2 min), 03-04 (3 min), 03-05 (5 min, incl verification)
+- Last 5 plans: 03-02 (3 min), 03-03 (2 min), 03-04 (3 min), 03-05 (5 min), 04-01 (4 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -131,6 +132,10 @@ Recent decisions affecting current work:
 - [03-04]: 20 result limit for context recovery (more than search_memory's default 10)
 - [03-04]: Max 5 dates with 3 items per date to avoid overwhelming output
 - [03-04]: Days parameter capped at 30 to prevent excessive queries
+- [04-01]: Refactored Base class to db/base.py to avoid circular imports
+- [04-01]: Read-only calendar scope (calendar.readonly) for v1 security
+- [04-01]: Token storage at JARVIS_DATA_DIR/calendar/token.json for persistence
+- [04-01]: CalendarAuthRequired exception pattern for auth-gated endpoints
 
 ### Pending Todos
 
@@ -142,6 +147,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-25T12:17:35Z
-Stopped at: Completed 03-05-PLAN.md (Phase 3 complete)
+Last session: 2026-01-25T13:14:34Z
+Stopped at: Completed 04-01-PLAN.md
 Resume file: None
