@@ -5,7 +5,7 @@ Returns HTML fragments for dynamic loading in the web UI.
 
 import logging
 import re
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup, escape
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from jarvis_server.calendar.models import CalendarEvent, Meeting
@@ -231,3 +231,233 @@ async def search_web(
                 "error": "Search failed. Please try again.",
             },
         )
+
+
+@router.get("/timeline/grid", response_class=HTMLResponse)
+async def get_timeline_grid(
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+    date_param: date = Query(alias="date", description="Date to load captures for"),
+    cursor: Optional[str] = Query(None, description="Pagination cursor (ISO timestamp)"),
+    limit: int = Query(50, ge=1, le=200, description="Number of captures to return"),
+) -> HTMLResponse:
+    """Get capture grid for a specific date.
+
+    Returns HTML fragment with capture thumbnails for the selected date.
+    Uses cursor-based pagination for infinite scroll.
+    """
+    # Build query conditions
+    conditions = [
+        Capture.timestamp >= datetime.combine(date_param, datetime.min.time()),
+        Capture.timestamp <= datetime.combine(date_param, datetime.max.time()),
+    ]
+
+    if cursor:
+        try:
+            cursor_dt = datetime.fromisoformat(cursor)
+            conditions.append(Capture.timestamp < cursor_dt)
+        except ValueError:
+            pass
+
+    # Query captures
+    query = (
+        select(Capture)
+        .where(and_(*conditions))
+        .order_by(Capture.timestamp.desc())
+        .limit(limit + 1)
+    )
+
+    result = await session.execute(query)
+    captures = list(result.scalars().all())
+
+    # Check for more results
+    has_more = len(captures) > limit
+    if has_more:
+        captures = captures[:limit]
+
+    # Get total count for the date
+    count_query = select(func.count(Capture.id)).where(
+        and_(
+            Capture.timestamp >= datetime.combine(date_param, datetime.min.time()),
+            Capture.timestamp <= datetime.combine(date_param, datetime.max.time()),
+        )
+    )
+    total_result = await session.execute(count_query)
+    total = total_result.scalar() or 0
+
+    # Determine next cursor
+    next_cursor = None
+    if has_more and captures:
+        next_cursor = captures[-1].timestamp.isoformat()
+
+    # Transform captures for template
+    capture_data = [
+        {
+            "id": c.id,
+            "timestamp": c.timestamp,
+            "filepath": c.filepath,
+            "width": c.width,
+            "height": c.height,
+            "has_ocr": bool(c.ocr_text),
+            "text_preview": c.ocr_text[:100] if c.ocr_text else None,
+        }
+        for c in captures
+    ]
+
+    return templates.TemplateResponse(
+        request=request,
+        name="partials/capture-grid.html",
+        context={
+            "captures": capture_data,
+            "total": total,
+            "has_more": has_more,
+            "next_cursor": next_cursor,
+            "selected_date": date_param.isoformat(),
+        },
+    )
+
+
+@router.get("/timeline/capture/{capture_id}", response_class=HTMLResponse)
+async def get_capture_modal(
+    request: Request,
+    capture_id: str,
+    session: AsyncSession = Depends(get_db),
+) -> HTMLResponse:
+    """Get capture detail modal.
+
+    Returns HTML fragment with full capture details and OCR text.
+    Includes navigation to previous/next captures.
+    """
+    from fastapi import HTTPException
+
+    # Get the capture
+    result = await session.execute(
+        select(Capture).where(Capture.id == capture_id)
+    )
+    capture = result.scalar_one_or_none()
+
+    if not capture:
+        raise HTTPException(status_code=404, detail="Capture not found")
+
+    # Get previous capture (newer)
+    prev_result = await session.execute(
+        select(Capture.id)
+        .where(Capture.timestamp > capture.timestamp)
+        .order_by(Capture.timestamp.asc())
+        .limit(1)
+    )
+    prev_capture = prev_result.scalar()
+
+    # Get next capture (older)
+    next_result = await session.execute(
+        select(Capture.id)
+        .where(Capture.timestamp < capture.timestamp)
+        .order_by(Capture.timestamp.desc())
+        .limit(1)
+    )
+    next_capture = next_result.scalar()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="partials/capture-modal.html",
+        context={
+            "capture": capture,
+            "prev_capture": prev_capture,
+            "next_capture": next_capture,
+        },
+    )
+
+
+@router.get("/result/{result_id}", response_class=HTMLResponse)
+async def get_result_detail(
+    request: Request,
+    result_id: str,
+    source: str = Query(..., description="Result source type"),
+    session: AsyncSession = Depends(get_db),
+) -> HTMLResponse:
+    """Get result detail for modal display.
+
+    Args:
+        request: FastAPI request
+        result_id: ID of the result to display
+        source: Source type (screen, chatgpt, claude, grok, email)
+        session: Database session
+
+    Returns:
+        HTML fragment with result details
+    """
+    from fastapi import HTTPException
+
+    context: dict = {"result": None, "email": None, "conversation_id": None}
+
+    if source == "screen":
+        # Load capture from database
+        result = await session.execute(
+            select(Capture).where(Capture.id == result_id)
+        )
+        capture = result.scalar_one_or_none()
+
+        if not capture:
+            raise HTTPException(status_code=404, detail="Capture not found")
+
+        context["result"] = {
+            "id": capture.id,
+            "source": "screen",
+            "timestamp": capture.timestamp,
+            "filepath": capture.filepath,
+            "text_preview": capture.ocr_text or "No OCR text available",
+            "score": None,
+        }
+
+    elif source == "email":
+        # Load email from database
+        from jarvis_server.email.models import Email
+
+        result = await session.execute(
+            select(Email).where(Email.id == result_id)
+        )
+        email = result.scalar_one_or_none()
+
+        if not email:
+            raise HTTPException(status_code=404, detail="Email not found")
+
+        context["result"] = {
+            "id": email.id,
+            "source": "email",
+            "timestamp": email.received_at,
+            "filepath": None,
+            "text_preview": f"Email: {email.subject}\nFrom: {email.sender}",
+            "score": None,
+        }
+        context["email"] = email
+
+    elif source in ["chatgpt", "claude", "grok"]:
+        # Load conversation from database
+        from jarvis_server.chat.models import Conversation
+
+        result = await session.execute(
+            select(Conversation).where(Conversation.id == result_id)
+        )
+        conversation = result.scalar_one_or_none()
+
+        if not conversation:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        context["result"] = {
+            "id": conversation.id,
+            "source": source,
+            "timestamp": conversation.created_at,
+            "filepath": None,
+            "text_preview": conversation.text_content or "No content available",
+            "score": None,
+        }
+        context["conversation_id"] = conversation.external_id
+
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown source type: {source}")
+
+    return templates.TemplateResponse(
+        request=request,
+        name="partials/result-modal.html",
+        context=context,
+    )
