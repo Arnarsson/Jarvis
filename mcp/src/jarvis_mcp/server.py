@@ -30,6 +30,7 @@ mcp = FastMCP(name="jarvis-memory")
 
 # Register tools by importing (decorators register with mcp instance)
 from jarvis_mcp.tools import search  # noqa: F401 E402
+from jarvis_mcp.tools import catchup  # noqa: F401 E402
 
 logger = structlog.get_logger()
 
