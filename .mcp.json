@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "jarvis-memory": {
+      "command": "/home/sven/Documents/jarvis/mcp/.venv/bin/jarvis-mcp",
+      "env": {
+        "JARVIS_SERVER_URL": "http://localhost:8000"
+      }
+    }
+  }
+}

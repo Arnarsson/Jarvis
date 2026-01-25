@@ -122,10 +122,15 @@ Plans:
   1. Gmail read access imports email context into Jarvis memory
   2. Email content is searchable alongside other memory sources
   3. Relevant emails are included in pre-meeting briefs for attendees and topics
-**Plans**: TBD
+**Plans**: 6 plans in 4 waves
 
 Plans:
-- [ ] 05-01: TBD
+- [x] 05-01-PLAN.md — Gmail OAuth foundation and database schema
+- [x] 05-02-PLAN.md — Email incremental sync service
+- [x] 05-03-PLAN.md — Email search integration (embeddings)
+- [x] 05-04-PLAN.md — Pre-meeting brief enrichment with email
+- [x] 05-05-PLAN.md — MCP tools for email access
+- [ ] 05-06-PLAN.md — End-to-end verification (checkpoint)
 
 ### Phase 6: Workflow Automation Engine
 **Goal**: User's repeated workflows are detected and can be automated with tiered trust levels
@@ -146,19 +151,23 @@ Plans:
 
 ### Phase 7: Web UI & Visualization
 **Goal**: User can access Jarvis through a web dashboard over Tailscale
-**Depends on**: Phase 2 (search), Phase 6 (workflows)
+**Depends on**: Phase 2 (search), Phase 4 (calendar)
 **Requirements**: UI-01, UI-02, UI-03, UI-04, UI-05
 **Success Criteria** (what must be TRUE):
   1. Web dashboard is accessible via browser over Tailscale VPN
   2. Timeline view shows visual history of captures
   3. Settings management allows configuring capture frequency, exclusions, and automation tiers
   4. Search interface enables manual queries with filter controls
-  5. Workflow approval interface shows suggested automations for review
-**Plans**: TBD
+  5. Calendar and meetings dashboard shows events and briefs
+**Plans**: 6 plans in 4 waves
 
 Plans:
-- [ ] 07-01: TBD
-- [ ] 07-02: TBD
+- [x] 07-01-PLAN.md — Frontend project setup (HTMX, Jinja2, TailwindCSS)
+- [x] 07-02-PLAN.md — Timeline view with capture gallery
+- [x] 07-03-PLAN.md — Search interface with filters
+- [x] 07-04-PLAN.md — Calendar and meetings dashboard
+- [x] 07-05-PLAN.md — Settings and configuration UI
+- [ ] 07-06-PLAN.md — End-to-end verification (checkpoint)
 
 ## Progress
 
@@ -171,9 +180,9 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 2. Searchable Memory (RAG Core) | 9/9 | **Complete** | 2026-01-25 |
 | 3. MCP Server & Claude Code | 5/5 | **Complete** | 2026-01-25 |
 | 4. Calendar & Meeting Intelligence | 9/9 | **Complete** | 2026-01-25 |
-| 5. Email & Communication Context | 0/TBD | Not started | - |
+| 5. Email & Communication Context | 5/6 | **Verification** | - |
 | 6. Workflow Automation Engine | 0/TBD | Not started | - |
-| 7. Web UI & Visualization | 0/TBD | Not started | - |
+| 7. Web UI & Visualization | 5/6 | **Verification** | - |
 
 ---
 *Roadmap created: 2026-01-24*

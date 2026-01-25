@@ -89,7 +89,7 @@
         <div class="flex flex-col lg:flex-row max-h-[calc(90vh-8rem)] overflow-hidden">
             <!-- Image section -->
             <div class="flex-1 flex items-center justify-center bg-gray-900 p-4 min-h-[300px]">
-                <img src="/captures/{{ capture.filepath }}"
+                <img src="/captures/{{ capture.filepath | replace('/data/captures/', '') }}"
                      alt="Capture from {{ capture.timestamp.strftime('%H:%M:%S') }}"
                      class="capture-detail-image rounded">
             </div>
@@ -134,7 +134,7 @@
                 </span>
                 <span class="ml-2">Created {{ capture.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</span>
             </div>
-            <a href="/captures/{{ capture.filepath }}"
+            <a href="/captures/{{ capture.filepath | replace('/data/captures/', '') }}"
                target="_blank"
                class="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800">
                 <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">

@@ -12,7 +12,7 @@
          hx-target="#capture-modal"
          hx-trigger="click"
          hx-swap="innerHTML">
-        <img src="/captures/{{ capture.filepath }}"
+        <img src="/captures/{{ capture.filepath | replace('/data/captures/', '') }}"
              alt="Capture from {{ capture.timestamp.strftime('%H:%M:%S') }}"
              loading="lazy">
         <div class="capture-thumbnail-overlay">
