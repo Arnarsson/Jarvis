@@ -3,17 +3,19 @@
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from jarvis_server.db.session import get_db
-from jarvis_server.email.models import EmailMessage
+from jarvis_server.email.models import EmailMessage, EmailSyncState
 from jarvis_server.email.oauth import (
     CredentialsNotFound,
+    GmailAuthRequired,
     credentials_exist,
     is_authenticated,
     start_oauth_flow,
 )
+from jarvis_server.email.sync import sync_emails
 
 logger = structlog.get_logger(__name__)
 
@@ -63,6 +65,23 @@ class EmailListResponse(BaseModel):
 
     messages: list[EmailMessageResponse]
     count: int
+
+
+class SyncResponse(BaseModel):
+    """Response for sync endpoint."""
+
+    status: str
+    created: int
+    updated: int
+    deleted: int
+
+
+class SyncStatusResponse(BaseModel):
+    """Response for sync status endpoint."""
+
+    last_sync: str | None = None
+    history_id: str | None = None
+    message_count: int
 
 
 @router.get("/auth/status", response_model=AuthStatusResponse)
@@ -198,4 +217,79 @@ async def get_message(
         cc_addresses=message.cc_addresses,
         body_text=message.body_text,
         labels_json=message.labels_json,
+    )
+
+
+@router.post("/sync", response_model=SyncResponse)
+async def trigger_sync(
+    full_sync: bool = False,
+    db: AsyncSession = Depends(get_db),
+) -> SyncResponse:
+    """Trigger email sync from Gmail.
+
+    Performs incremental sync by default using Gmail History API.
+    Use full_sync=true to force a complete re-sync of recent messages.
+
+    Args:
+        full_sync: Force full sync instead of incremental (default False).
+        db: Database session.
+
+    Returns:
+        Sync results with counts of created/updated/deleted messages.
+
+    Raises:
+        HTTPException: If not authenticated with Gmail.
+    """
+    try:
+        result = await sync_emails(db, full_sync=full_sync)
+        logger.info(
+            "email_sync_completed",
+            created=result["created"],
+            updated=result["updated"],
+            deleted=result["deleted"],
+        )
+        return SyncResponse(
+            status="completed",
+            created=result["created"],
+            updated=result["updated"],
+            deleted=result["deleted"],
+        )
+    except GmailAuthRequired as e:
+        logger.warning("email_sync_auth_required")
+        raise HTTPException(
+            status_code=401,
+            detail=str(e),
+        ) from e
+
+
+@router.get("/sync/status", response_model=SyncStatusResponse)
+async def get_sync_status(
+    db: AsyncSession = Depends(get_db),
+) -> SyncStatusResponse:
+    """Get email sync status.
+
+    Returns information about the last sync and current state.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        Sync status including last sync time, history ID, and message count.
+    """
+    # Get sync state
+    result = await db.execute(
+        select(EmailSyncState).where(EmailSyncState.id == "gmail_primary")
+    )
+    state = result.scalar_one_or_none()
+
+    # Get message count
+    count_result = await db.execute(
+        select(func.count()).select_from(EmailMessage)
+    )
+    message_count = count_result.scalar() or 0
+
+    return SyncStatusResponse(
+        last_sync=state.updated_at.isoformat() if state else None,
+        history_id=state.history_id if state else None,
+        message_count=message_count,
     )
