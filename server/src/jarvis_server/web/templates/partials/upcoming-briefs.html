@@ -1,0 +1,144 @@
+<!-- Upcoming meetings with briefs fragment -->
+{% if events %}
+<div class="space-y-3">
+    {% for event in events %}
+    <div class="upcoming-brief-card {% if event.is_soon %}upcoming-brief-soon{% endif %}"
+         hx-get="/api/web/meetings/brief/{{ event.id }}"
+         hx-target="#brief-content"
+         hx-swap="innerHTML"
+         @click="openBrief('{{ event.id }}', '{{ event.summary|e }}')">
+        <div class="flex items-start justify-between">
+            <div class="flex-1 min-w-0">
+                <h4 class="upcoming-brief-title">{{ event.summary }}</h4>
+                <div class="upcoming-brief-time">
+                    {% if event.is_soon %}
+                    <span class="upcoming-brief-soon-badge">Starting soon</span>
+                    {% else %}
+                    <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>{{ event.start_time.strftime('%H:%M') }}</span>
+                    <span class="text-gray-400">{{ event.duration_str }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="upcoming-brief-status">
+                {% if event.has_brief %}
+                <span class="brief-status-ready" title="Brief ready">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </span>
+                {% else %}
+                <span class="brief-status-pending" title="Click to generate brief">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                    </svg>
+                </span>
+                {% endif %}
+            </div>
+        </div>
+        {% if event.meeting_link %}
+        <a href="{{ event.meeting_link }}"
+           target="_blank"
+           @click.stop
+           class="upcoming-brief-join">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+            </svg>
+            Join
+        </a>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <svg class="empty-state-icon" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+    </svg>
+    <p class="empty-state-title">No upcoming meetings</p>
+    <p class="empty-state-description">No meetings in the next 24 hours</p>
+</div>
+{% endif %}
+
+<style>
+/* Upcoming briefs card styles */
+.upcoming-brief-card {
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid #e5e7eb;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.upcoming-brief-card:hover {
+    border-color: #a5b4fc;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.upcoming-brief-soon {
+    border-color: #fbbf24;
+    background-color: #fffbeb;
+}
+
+.upcoming-brief-title {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #111827;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.upcoming-brief-time {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+.upcoming-brief-soon-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.625rem;
+    font-weight: 600;
+    color: #92400e;
+    background-color: #fef3c7;
+    border-radius: 9999px;
+}
+
+.upcoming-brief-status {
+    flex-shrink: 0;
+    margin-left: 0.5rem;
+}
+
+.brief-status-ready {
+    color: #059669;
+}
+
+.brief-status-pending {
+    color: #9ca3af;
+}
+
+.upcoming-brief-join {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #ffffff;
+    background-color: #4f46e5;
+    border-radius: 0.25rem;
+    transition: background-color 0.15s ease;
+}
+
+.upcoming-brief-join:hover {
+    background-color: #4338ca;
+}
+</style>

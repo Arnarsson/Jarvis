@@ -3,12 +3,15 @@
 Returns HTML fragments for dynamic loading in the web UI.
 """
 
+import calendar as cal_module
+import json
 import logging
 import re
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
+import markdown
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -461,3 +464,427 @@ async def get_result_detail(
         name="partials/result-modal.html",
         context=context,
     )
+
+
+# --- Calendar Endpoints ---
+
+
+def _get_initials(email: str) -> str:
+    """Extract initials from email address."""
+    local_part = email.split("@")[0]
+    # Try to split on common separators
+    parts = re.split(r"[._-]", local_part)
+    if len(parts) >= 2:
+        return (parts[0][0] + parts[1][0]).upper()
+    # Fallback to first two chars
+    return local_part[:2].upper()
+
+
+def _parse_attendees(attendees_json: str | None) -> list[dict]:
+    """Parse attendees JSON and add computed fields."""
+    if not attendees_json:
+        return []
+    try:
+        attendees = json.loads(attendees_json)
+        for attendee in attendees:
+            email = attendee.get("email", "")
+            attendee["initials"] = _get_initials(email)
+            # Use displayName if available, otherwise email
+            attendee["display_name"] = attendee.get("displayName") or email
+            # Normalize response status
+            status = attendee.get("responseStatus", "needsAction")
+            attendee["response_status"] = status
+            attendee["organizer"] = attendee.get("organizer", False)
+        return attendees
+    except (json.JSONDecodeError, TypeError):
+        return []
+
+
+def _calculate_duration(start: datetime, end: datetime) -> str:
+    """Calculate human-readable duration string."""
+    duration = end - start
+    total_minutes = int(duration.total_seconds() / 60)
+
+    if total_minutes < 60:
+        return f"{total_minutes}min"
+    hours = total_minutes // 60
+    minutes = total_minutes % 60
+    if minutes == 0:
+        return f"{hours}hr"
+    return f"{hours}hr {minutes}min"
+
+
+@router.get("/calendar/month", response_class=HTMLResponse)
+async def get_calendar_month(
+    request: Request,
+    year: Optional[int] = Query(None, description="Year"),
+    month: Optional[int] = Query(None, ge=1, le=12, description="Month (1-12)"),
+    session: AsyncSession = Depends(get_db),
+) -> HTMLResponse:
+    """Get calendar month grid as HTML fragment.
+
+    Args:
+        request: FastAPI request
+        year: Year to display (defaults to current year)
+        month: Month to display (defaults to current month)
+        session: Database session
+
+    Returns:
+        HTML fragment with month calendar grid
+    """
+    # Default to current month
+    today = date.today()
+    year = year or today.year
+    month = month or today.month
+
+    # Calculate prev/next month
+    if month == 1:
+        prev_year, prev_month = year - 1, 12
+    else:
+        prev_year, prev_month = year, month - 1
+
+    if month == 12:
+        next_year, next_month = year + 1, 1
+    else:
+        next_year, next_month = year, month + 1
+
+    # Get month name
+    month_name = cal_module.month_name[month]
+
+    # Get calendar weeks (Monday start)
+    cal = cal_module.Calendar(firstweekday=0)  # Monday = 0
+    month_days = cal.monthdatescalendar(year, month)
+
+    # Get all events for this month with a margin
+    first_day = month_days[0][0]
+    last_day = month_days[-1][-1]
+
+    start_dt = datetime.combine(first_day, datetime.min.time())
+    end_dt = datetime.combine(last_day, datetime.max.time())
+
+    result = await session.execute(
+        select(CalendarEvent)
+        .where(CalendarEvent.start_time >= start_dt)
+        .where(CalendarEvent.start_time <= end_dt)
+        .order_by(CalendarEvent.start_time)
+    )
+    events = result.scalars().all()
+
+    # Group events by date
+    events_by_date: dict[date, list] = {}
+    for event in events:
+        event_date = event.start_time.date()
+        if event_date not in events_by_date:
+            events_by_date[event_date] = []
+        events_by_date[event_date].append({
+            "id": event.id,
+            "summary": event.summary,
+            "start_time": event.start_time,
+        })
+
+    # Build weeks data
+    weeks = []
+    for week in month_days:
+        week_data = []
+        for day_date in week:
+            is_current_month = day_date.month == month
+            is_today = day_date == today
+            day_events = events_by_date.get(day_date, [])
+
+            # Format label for display
+            label = day_date.strftime("%A, %B %d, %Y")
+
+            week_data.append({
+                "day": day_date.day,
+                "date": day_date.isoformat(),
+                "label": label,
+                "is_current_month": is_current_month,
+                "is_today": is_today,
+                "has_events": len(day_events) > 0,
+                "event_count": len(day_events),
+                "events": day_events,
+            })
+        weeks.append(week_data)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="partials/calendar-grid.html",
+        context={
+            "year": year,
+            "month": month,
+            "month_name": month_name,
+            "prev_year": prev_year,
+            "prev_month": prev_month,
+            "next_year": next_year,
+            "next_month": next_month,
+            "weeks": weeks,
+            "today": today,
+        },
+    )
+
+
+@router.get("/calendar/events", response_class=HTMLResponse)
+async def get_calendar_events(
+    request: Request,
+    event_date: date = Query(alias="date", description="Date to load events for"),
+    session: AsyncSession = Depends(get_db),
+) -> HTMLResponse:
+    """Get events for a specific date as HTML fragment.
+
+    Args:
+        request: FastAPI request
+        event_date: Date to load events for
+        session: Database session
+
+    Returns:
+        HTML fragment with events list
+    """
+    start_dt = datetime.combine(event_date, datetime.min.time())
+    end_dt = datetime.combine(event_date, datetime.max.time())
+
+    result = await session.execute(
+        select(CalendarEvent)
+        .where(CalendarEvent.start_time >= start_dt)
+        .where(CalendarEvent.start_time <= end_dt)
+        .order_by(CalendarEvent.start_time)
+    )
+    db_events = result.scalars().all()
+
+    # Transform events for template
+    events = []
+    for event in db_events:
+        duration_str = _calculate_duration(event.start_time, event.end_time)
+        attendees = _parse_attendees(event.attendees_json)
+
+        events.append({
+            "id": event.id,
+            "summary": event.summary,
+            "start_time": event.start_time,
+            "end_time": event.end_time,
+            "duration_str": duration_str,
+            "location": event.location,
+            "meeting_link": event.meeting_link,
+            "attendees": attendees,
+        })
+
+    return templates.TemplateResponse(
+        request=request,
+        name="partials/events-list.html",
+        context={
+            "events": events,
+            "date": event_date,
+        },
+    )
+
+
+@router.get("/calendar/upcoming-briefs", response_class=HTMLResponse)
+async def get_upcoming_briefs(
+    request: Request,
+    hours: int = Query(24, ge=1, le=168, description="Hours to look ahead"),
+    session: AsyncSession = Depends(get_db),
+) -> HTMLResponse:
+    """Get upcoming meetings with briefs as HTML fragment.
+
+    Args:
+        request: FastAPI request
+        hours: Number of hours to look ahead (default 24)
+        session: Database session
+
+    Returns:
+        HTML fragment with upcoming meetings and brief status
+    """
+    now = datetime.now(timezone.utc)
+    end = now + timedelta(hours=hours)
+
+    result = await session.execute(
+        select(CalendarEvent)
+        .where(CalendarEvent.start_time >= now)
+        .where(CalendarEvent.start_time <= end)
+        .order_by(CalendarEvent.start_time)
+        .limit(10)
+    )
+    db_events = result.scalars().all()
+
+    # Check for existing briefs (via Meeting model)
+    events_with_brief_status = []
+    for event in db_events:
+        # Check if there's a meeting with a brief for this event
+        meeting_result = await session.execute(
+            select(Meeting)
+            .where(Meeting.calendar_event_id == event.id)
+            .limit(1)
+        )
+        meeting = meeting_result.scalar_one_or_none()
+        has_brief = meeting is not None and meeting.brief is not None
+
+        duration_str = _calculate_duration(event.start_time, event.end_time)
+
+        events_with_brief_status.append({
+            "id": event.id,
+            "summary": event.summary,
+            "start_time": event.start_time,
+            "duration_str": duration_str,
+            "meeting_link": event.meeting_link,
+            "has_brief": has_brief,
+            "is_soon": (event.start_time - now).total_seconds() < 3600,  # Within 1 hour
+        })
+
+    return templates.TemplateResponse(
+        request=request,
+        name="partials/upcoming-briefs.html",
+        context={
+            "events": events_with_brief_status,
+        },
+    )
+
+
+@router.get("/meetings/brief/{event_id}", response_class=HTMLResponse)
+async def get_meeting_brief(
+    request: Request,
+    event_id: str,
+    session: AsyncSession = Depends(get_db),
+) -> HTMLResponse:
+    """Get meeting brief for an event as HTML fragment.
+
+    Args:
+        request: FastAPI request
+        event_id: Calendar event ID
+        session: Database session
+
+    Returns:
+        HTML fragment with meeting brief or generate button
+    """
+    from fastapi import HTTPException
+
+    # Get the calendar event
+    event_result = await session.execute(
+        select(CalendarEvent).where(CalendarEvent.id == event_id)
+    )
+    event = event_result.scalar_one_or_none()
+
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    # Check for existing meeting with brief
+    meeting_result = await session.execute(
+        select(Meeting)
+        .where(Meeting.calendar_event_id == event_id)
+        .limit(1)
+    )
+    meeting = meeting_result.scalar_one_or_none()
+
+    # Parse attendees
+    attendees = _parse_attendees(event.attendees_json)
+
+    # Build event context
+    event_context = {
+        "id": event.id,
+        "summary": event.summary,
+        "start_time": event.start_time,
+        "end_time": event.end_time,
+        "location": event.location,
+        "meeting_link": event.meeting_link,
+        "attendees": attendees,
+    }
+
+    if meeting and meeting.brief:
+        # Convert brief markdown to HTML
+        brief_html = markdown.markdown(
+            meeting.brief,
+            extensions=["extra", "nl2br"],
+        )
+
+        return templates.TemplateResponse(
+            request=request,
+            name="partials/meeting-brief.html",
+            context={
+                "event": event_context,
+                "brief": meeting.brief,
+                "brief_html": brief_html,
+                "was_cached": True,
+                "needs_generation": False,
+            },
+        )
+    else:
+        return templates.TemplateResponse(
+            request=request,
+            name="partials/meeting-brief.html",
+            context={
+                "event": event_context,
+                "brief": None,
+                "needs_generation": True,
+            },
+        )
+
+
+@router.post("/meetings/brief/{event_id}", response_class=HTMLResponse)
+async def generate_meeting_brief(
+    request: Request,
+    event_id: str,
+    force_regenerate: bool = Query(False, description="Force regeneration"),
+    session: AsyncSession = Depends(get_db),
+) -> HTMLResponse:
+    """Generate meeting brief for an event.
+
+    Args:
+        request: FastAPI request
+        event_id: Calendar event ID
+        force_regenerate: Whether to regenerate even if cached
+        session: Database session
+
+    Returns:
+        HTML fragment with generated brief
+    """
+    from fastapi import HTTPException
+    from jarvis_server.meetings.briefs import get_or_generate_brief
+
+    # Get the calendar event
+    event_result = await session.execute(
+        select(CalendarEvent).where(CalendarEvent.id == event_id)
+    )
+    event = event_result.scalar_one_or_none()
+
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    try:
+        brief, was_generated = await get_or_generate_brief(
+            event_id, session, force_regenerate
+        )
+
+        # Parse attendees
+        attendees = _parse_attendees(event.attendees_json)
+
+        # Build event context
+        event_context = {
+            "id": event.id,
+            "summary": event.summary,
+            "start_time": event.start_time,
+            "end_time": event.end_time,
+            "location": event.location,
+            "meeting_link": event.meeting_link,
+            "attendees": attendees,
+        }
+
+        # Convert brief markdown to HTML
+        brief_html = markdown.markdown(
+            brief,
+            extensions=["extra", "nl2br"],
+        )
+
+        return templates.TemplateResponse(
+            request=request,
+            name="partials/meeting-brief.html",
+            context={
+                "event": event_context,
+                "brief": brief,
+                "brief_html": brief_html,
+                "was_cached": not was_generated,
+                "needs_generation": False,
+            },
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Brief generation failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to generate brief")
