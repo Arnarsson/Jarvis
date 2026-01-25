@@ -1,43 +1,140 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="space-y-6" x-data="calendarApp()">
     <!-- Page header -->
     <div class="flex items-center justify-between">
         <div>
             <h1 class="text-2xl font-bold text-gray-900">Calendar</h1>
             <p class="mt-1 text-sm text-gray-500">Your meetings and events</p>
         </div>
-        <button type="button" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-            Sync Calendar
+        <button type="button"
+                hx-post="/api/calendar/sync"
+                hx-swap="none"
+                hx-indicator=".htmx-indicator"
+                @htmx:after-request="if(event.detail.successful) { $dispatch('calendar-sync-complete') }"
+                class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+            <span class="flex items-center">
+                <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
+                Sync Calendar
+            </span>
         </button>
     </div>
 
-    <!-- Calendar view placeholder -->
-    <div class="rounded-lg bg-white shadow">
-        <div class="p-6">
-            <div class="flex items-center justify-center py-12 text-gray-500">
-                <div class="text-center">
-                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                    </svg>
-                    <h3 class="mt-2 text-sm font-medium text-gray-900">Calendar view</h3>
-                    <p class="mt-1 text-sm text-gray-500">Full calendar implementation coming in 07-03</p>
+    <!-- Main content grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Calendar grid (2 columns on large screens) -->
+        <div class="lg:col-span-2">
+            <div class="rounded-lg bg-white shadow">
+                <div id="calendar-grid"
+                     hx-get="/api/web/calendar/month"
+                     hx-trigger="load, calendar-sync-complete from:body"
+                     hx-swap="innerHTML"
+                     class="p-4">
+                    <!-- Calendar grid loads here -->
+                    <div class="flex items-center justify-center py-12">
+                        <svg class="h-8 w-8 animate-spin text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Events for selected day -->
+            <div class="mt-6 rounded-lg bg-white shadow">
+                <div class="border-b border-gray-200 px-4 py-4">
+                    <h2 class="text-lg font-medium text-gray-900">
+                        <span x-text="selectedDateLabel || 'Select a day'">Select a day</span>
+                    </h2>
+                </div>
+                <div id="events-list" class="p-4">
+                    <div class="empty-state">
+                        <svg class="empty-state-icon" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V15zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0 2.25h.008v.008H16.5V15z" />
+                        </svg>
+                        <p class="empty-state-title">Click a day to view events</p>
+                        <p class="empty-state-description">Events for the selected day will appear here</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar: Upcoming meetings with briefs -->
+        <div class="lg:col-span-1">
+            <div class="rounded-lg bg-white shadow">
+                <div class="border-b border-gray-200 px-4 py-4">
+                    <h2 class="text-lg font-medium text-gray-900">Upcoming Meetings</h2>
+                    <p class="mt-1 text-sm text-gray-500">Next 24 hours</p>
+                </div>
+                <div id="upcoming-briefs"
+                     hx-get="/api/web/calendar/upcoming-briefs"
+                     hx-trigger="load, calendar-sync-complete from:body"
+                     hx-swap="innerHTML"
+                     class="p-4">
+                    <!-- Upcoming meetings load here -->
+                    <div class="flex items-center justify-center py-8">
+                        <svg class="h-6 w-6 animate-spin text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Upcoming meetings list -->
-    <div class="rounded-lg bg-white shadow">
-        <div class="border-b border-gray-200 px-4 py-5 sm:px-6">
-            <h2 class="text-lg font-medium text-gray-900">Upcoming Meetings</h2>
-        </div>
-        <div class="p-4">
-            <div class="flex items-center justify-center py-8 text-gray-500">
-                <p class="text-sm">Connect your Google Calendar to see upcoming meetings</p>
+    <!-- Meeting brief modal -->
+    <div x-show="showBriefModal"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="modal-overlay"
+         @click.self="showBriefModal = false"
+         @keydown.escape.window="showBriefModal = false">
+        <div class="modal-content w-full max-w-2xl mx-4">
+            <div class="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+                <h3 class="text-lg font-medium text-gray-900" x-text="briefTitle">Meeting Brief</h3>
+                <button @click="showBriefModal = false" class="text-gray-400 hover:text-gray-500">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div id="brief-content" class="p-6 max-h-[70vh] overflow-y-auto">
+                <!-- Brief content loads here via HTMX -->
             </div>
         </div>
     </div>
 </div>
+
+<script>
+function calendarApp() {
+    return {
+        selectedDate: null,
+        selectedDateLabel: null,
+        showBriefModal: false,
+        briefTitle: 'Meeting Brief',
+        currentYear: new Date().getFullYear(),
+        currentMonth: new Date().getMonth() + 1,
+
+        selectDate(dateStr, label) {
+            this.selectedDate = dateStr;
+            this.selectedDateLabel = label;
+            // HTMX will handle the actual loading
+        },
+
+        openBrief(eventId, title) {
+            this.briefTitle = title || 'Meeting Brief';
+            this.showBriefModal = true;
+            // HTMX will load the content
+        }
+    }
+}
+</script>
 {% endblock %}
