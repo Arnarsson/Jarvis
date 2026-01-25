@@ -47,7 +47,7 @@ jarvis/
 
 1. **Settings class validation**: If adding new env vars, add them to `server/src/jarvis_server/config.py` Settings class or use `extra="ignore"`
 
-2. **Google Calendar OAuth**: Requires browser access on same machine. Credentials go in `$JARVIS_DATA_DIR/calendar/credentials.json`
+2. **Google Calendar OAuth**: Requires browser access on same machine. Credentials go in `server/data/calendar/credentials.json` (mounted to `/data/calendar` in Docker)
 
 3. **Port conflicts**: Docker binds to 8000. Kill with `fuser -k 8000/tcp` or `docker compose down`
 
@@ -55,3 +55,7 @@ jarvis/
    ```bash
    python -c "from jarvis_server.main import app; print([r.path for r in app.routes])"
    ```
+
+5. **Docker volume mounts for secrets**: Files like credentials.json must be volume-mounted in docker-compose.yml. Named volumes don't see local files - use bind mounts (`./data/calendar:/data/calendar`)
+
+6. **Environment variables in Docker**: Pass through .env vars via `${VAR_NAME:-default}` in docker-compose.yml environment section

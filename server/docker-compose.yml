@@ -17,8 +17,11 @@ services:
       - JARVIS_LOG_LEVEL=${JARVIS_LOG_LEVEL:-INFO}
       - JARVIS_REDIS_HOST=redis
       - JARVIS_REDIS_PORT=6379
+      - JARVIS_DATA_DIR=/data
+      - JARVIS_ANTHROPIC_API_KEY=${JARVIS_ANTHROPIC_API_KEY:-}
     volumes:
       - captures:/data/captures
+      - ./data/calendar:/data/calendar
     depends_on:
       postgres:
         condition: service_healthy
@@ -50,12 +53,15 @@ services:
       - JARVIS_REDIS_PORT=6379
       - JARVIS_STORAGE_PATH=/data/captures
       - JARVIS_LOG_LEVEL=${JARVIS_LOG_LEVEL:-INFO}
+      - JARVIS_DATA_DIR=/data
+      - JARVIS_ANTHROPIC_API_KEY=${JARVIS_ANTHROPIC_API_KEY:-}
       # Model cache paths (container-local, models re-download on restart)
       - FASTEMBED_CACHE_PATH=/tmp/fastembed
       - HF_HOME=/tmp/huggingface
       - EASYOCR_MODULE_PATH=/tmp/easyocr
     volumes:
       - captures:/data/captures
+      - ./data/calendar:/data/calendar
     depends_on:
       postgres:
         condition: service_healthy
