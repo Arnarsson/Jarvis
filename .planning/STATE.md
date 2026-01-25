@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 3 of 7 (MCP Server & Claude Code)
-Plan: 3 of 5 in current phase
+Plan: 4 of 5 in current phase
 Status: In progress
-Last activity: 2026-01-25 -- Completed 03-03-PLAN.md
+Last activity: 2026-01-25 -- Completed 03-04-PLAN.md
 
-Progress: [######################] 88% (Phase 3: 3/5 plans)
+Progress: [#######################] 92% (Phase 3: 4/5 plans)
 
 ## Performance Metrics
 
@@ -127,6 +127,9 @@ Recent decisions affecting current work:
 - [03-03]: ToolError from mcp.server.fastmcp.exceptions for clean error handling
 - [03-03]: Date-only formatting (YYYY-MM-DD) from ISO timestamps for readability
 - [03-03]: Numbered list format for results (LLM-friendly output)
+- [03-04]: 20 result limit for context recovery (more than search_memory's default 10)
+- [03-04]: Max 5 dates with 3 items per date to avoid overwhelming output
+- [03-04]: Days parameter capped at 30 to prevent excessive queries
 
 ### Pending Todos
 
@@ -138,6 +141,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-25T11:31:42Z
-Stopped at: Completed 03-03-PLAN.md
+Last session: 2026-01-25T11:33:09Z
+Stopped at: Completed 03-04-PLAN.md
 Resume file: None
