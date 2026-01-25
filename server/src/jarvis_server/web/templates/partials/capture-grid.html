@@ -1,0 +1,65 @@
+<!-- Capture grid fragment for timeline view -->
+<div id="capture-grid-content"
+     data-next-cursor="{{ next_cursor or '' }}"
+     data-total="{{ total }}"
+     data-has-more="{{ 'true' if has_more else 'false' }}">
+
+{% if captures %}
+<div class="capture-grid">
+    {% for capture in captures %}
+    <div class="capture-thumbnail"
+         hx-get="/api/web/timeline/capture/{{ capture.id }}"
+         hx-target="#capture-modal"
+         hx-trigger="click"
+         hx-swap="innerHTML">
+        <img src="/captures/{{ capture.filepath }}"
+             alt="Capture from {{ capture.timestamp.strftime('%H:%M:%S') }}"
+             loading="lazy">
+        <div class="capture-thumbnail-overlay">
+            <div class="flex items-center justify-between">
+                <span>{{ capture.timestamp.strftime('%H:%M:%S') }}</span>
+                {% if capture.has_ocr %}
+                <span class="inline-flex items-center rounded bg-indigo-500/80 px-1.5 py-0.5 text-xs font-medium text-white">
+                    OCR
+                </span>
+                {% endif %}
+            </div>
+            {% if capture.text_preview %}
+            <div class="mt-1 text-xs opacity-75 truncate">
+                {{ capture.text_preview[:50] }}{% if capture.text_preview|length > 50 %}...{% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if has_more %}
+<!-- Infinite scroll sentinel -->
+<div id="infinite-scroll-sentinel"
+     class="flex items-center justify-center py-8"
+     hx-get="/api/web/timeline/grid?date={{ selected_date }}&cursor={{ next_cursor }}"
+     hx-trigger="revealed"
+     hx-swap="outerHTML"
+     hx-indicator="#load-more-spinner">
+    <div id="load-more-spinner" class="htmx-indicator">
+        <svg class="h-6 w-6 animate-spin text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+    </div>
+    <span class="text-sm text-gray-500 ml-2">Loading more...</span>
+</div>
+{% endif %}
+
+{% else %}
+<div class="empty-state">
+    <svg class="empty-state-icon" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+    </svg>
+    <p class="empty-state-title">No captures for this date</p>
+    <p class="empty-state-description">Select a different date or start capturing</p>
+</div>
+{% endif %}
+
+</div>

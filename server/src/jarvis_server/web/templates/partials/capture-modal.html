@@ -1,0 +1,147 @@
+<!-- Capture detail modal -->
+<div class="modal-overlay"
+     x-data="{ show: true }"
+     x-show="show"
+     x-transition:enter="transition ease-out duration-200"
+     x-transition:enter-start="opacity-0"
+     x-transition:enter-end="opacity-100"
+     x-transition:leave="transition ease-in duration-150"
+     x-transition:leave-start="opacity-100"
+     x-transition:leave-end="opacity-0"
+     @click.self="show = false; $el.innerHTML = ''"
+     @keydown.escape.window="show = false; $el.innerHTML = ''">
+
+    <div class="modal-content w-full max-w-5xl"
+         x-show="show"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 transform scale-95"
+         x-transition:enter-end="opacity-100 transform scale-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 transform scale-100"
+         x-transition:leave-end="opacity-0 transform scale-95">
+
+        <!-- Modal header -->
+        <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+            <div>
+                <h3 class="text-lg font-medium text-gray-900">
+                    Capture from {{ capture.timestamp.strftime('%B %d, %Y at %H:%M:%S') }}
+                </h3>
+                <p class="mt-1 text-sm text-gray-500">
+                    Monitor {{ capture.monitor_index + 1 }} | {{ capture.width }}x{{ capture.height }}
+                    {% if capture.file_size %}
+                    | {{ "%.1f"|format(capture.file_size / 1024) }} KB
+                    {% endif %}
+                </p>
+            </div>
+            <div class="flex items-center space-x-2">
+                <!-- Navigation arrows -->
+                {% if prev_capture %}
+                <button type="button"
+                        hx-get="/api/web/timeline/capture/{{ prev_capture }}"
+                        hx-target="#capture-modal"
+                        hx-swap="innerHTML"
+                        class="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                        title="Previous capture">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                    </svg>
+                </button>
+                {% else %}
+                <button type="button" disabled class="rounded-full p-2 text-gray-300 cursor-not-allowed">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                    </svg>
+                </button>
+                {% endif %}
+
+                {% if next_capture %}
+                <button type="button"
+                        hx-get="/api/web/timeline/capture/{{ next_capture }}"
+                        hx-target="#capture-modal"
+                        hx-swap="innerHTML"
+                        class="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                        title="Next capture">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
+                </button>
+                {% else %}
+                <button type="button" disabled class="rounded-full p-2 text-gray-300 cursor-not-allowed">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
+                </button>
+                {% endif %}
+
+                <!-- Close button -->
+                <button type="button"
+                        @click="show = false; document.getElementById('capture-modal').innerHTML = ''"
+                        class="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors ml-2"
+                        title="Close">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal body -->
+        <div class="flex flex-col lg:flex-row max-h-[calc(90vh-8rem)] overflow-hidden">
+            <!-- Image section -->
+            <div class="flex-1 flex items-center justify-center bg-gray-900 p-4 min-h-[300px]">
+                <img src="/captures/{{ capture.filepath }}"
+                     alt="Capture from {{ capture.timestamp.strftime('%H:%M:%S') }}"
+                     class="capture-detail-image rounded">
+            </div>
+
+            <!-- OCR text section -->
+            {% if capture.ocr_text %}
+            <div class="lg:w-96 border-t lg:border-t-0 lg:border-l border-gray-200 flex flex-col">
+                <div class="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                    <h4 class="text-sm font-medium text-gray-900 flex items-center">
+                        <svg class="h-4 w-4 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                        </svg>
+                        Extracted Text (OCR)
+                    </h4>
+                </div>
+                <div class="flex-1 overflow-y-auto p-4">
+                    <pre class="text-sm text-gray-700 whitespace-pre-wrap font-mono leading-relaxed">{{ capture.ocr_text }}</pre>
+                </div>
+                <div class="px-4 py-3 border-t border-gray-200 bg-gray-50">
+                    <button type="button"
+                            @click="navigator.clipboard.writeText($refs.ocrText?.innerText || '{{ capture.ocr_text|replace("'", "\\'") }}')"
+                            class="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800">
+                        <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+                        </svg>
+                        Copy text
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Modal footer -->
+        <div class="flex items-center justify-between border-t border-gray-200 px-6 py-4 bg-gray-50">
+            <div class="text-sm text-gray-500">
+                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
+                    {% if capture.processing_status == 'completed' %}bg-green-100 text-green-800
+                    {% elif capture.processing_status == 'processing' %}bg-yellow-100 text-yellow-800
+                    {% elif capture.processing_status == 'failed' %}bg-red-100 text-red-800
+                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                    {{ capture.processing_status|title }}
+                </span>
+                <span class="ml-2">Created {{ capture.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+            </div>
+            <a href="/captures/{{ capture.filepath }}"
+               target="_blank"
+               class="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800">
+                <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                </svg>
+                Open full size
+            </a>
+        </div>
+    </div>
+</div>
