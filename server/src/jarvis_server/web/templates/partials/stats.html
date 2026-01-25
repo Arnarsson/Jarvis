@@ -1,0 +1,21 @@
+<!-- Stats cards fragment -->
+<div class="stat-card">
+    <span class="stat-card-title">Total Captures</span>
+    <span class="stat-card-value">{{ total_captures | default(0) }}</span>
+    <span class="stat-card-subtitle">All time</span>
+</div>
+<div class="stat-card">
+    <span class="stat-card-title">Today's Captures</span>
+    <span class="stat-card-value">{{ today_captures | default(0) }}</span>
+    <span class="stat-card-subtitle">Since midnight</span>
+</div>
+<div class="stat-card">
+    <span class="stat-card-title">Calendar Events</span>
+    <span class="stat-card-value">{{ total_events | default(0) }}</span>
+    <span class="stat-card-subtitle">Synced from Google</span>
+</div>
+<div class="stat-card">
+    <span class="stat-card-title">Transcribed Meetings</span>
+    <span class="stat-card-value">{{ meetings_with_transcripts | default(0) }}</span>
+    <span class="stat-card-subtitle">With recordings</span>
+</div>

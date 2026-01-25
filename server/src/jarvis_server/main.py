@@ -25,6 +25,7 @@ from jarvis_server.api.search import router as search_router
 from jarvis_server.api.timeline import router as timeline_router
 from jarvis_server.imports.api import router as import_router
 from jarvis_server.web import router as web_router
+from jarvis_server.web.api import router as web_api_router
 from jarvis_server.config import get_settings
 
 logger = structlog.get_logger(__name__)
@@ -134,7 +135,8 @@ def create_app() -> FastAPI:
     app.include_router(timeline_router)
     app.include_router(import_router)
 
-    # Include web UI router (must be after API routers to avoid route conflicts)
+    # Include web UI routers (must be after API routers to avoid route conflicts)
+    app.include_router(web_api_router)
     app.include_router(web_router)
 
     # Mount static files for web UI
