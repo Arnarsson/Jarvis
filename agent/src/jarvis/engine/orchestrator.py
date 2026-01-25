@@ -6,8 +6,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import httpx
+
 from jarvis.config import Settings
 from jarvis.engine.capture_loop import CaptureLoop, CaptureResult, CaptureState
+from jarvis.meeting.detector import MeetingDetector, MeetingState
+from jarvis.monitor import WindowMonitor
 from jarvis.sync import CaptureUploader, UploadQueue
 
 logger = logging.getLogger(__name__)
@@ -49,9 +53,15 @@ class CaptureOrchestrator:
             timeout=30.0,
         )
 
+        # Meeting detection
+        self._window_monitor = WindowMonitor()
+        self._meeting_detector = MeetingDetector()
+        self._current_meeting_id: str | None = None
+
         # State tracking
         self._running = False
         self._upload_task: asyncio.Task | None = None
+        self._meeting_task: asyncio.Task | None = None
         self._last_capture_time: datetime | None = None
         self._capture_count = 0
 
@@ -91,6 +101,9 @@ class CaptureOrchestrator:
 
         # Start background upload worker
         self._upload_task = asyncio.create_task(self._upload_worker())
+
+        # Start meeting detection worker
+        self._meeting_task = asyncio.create_task(self._meeting_worker())
 
         # Start capture loop (blocks until stopped)
         await self._capture_loop.start()
@@ -193,6 +206,85 @@ class CaptureOrchestrator:
             # Sleep between batches
             await asyncio.sleep(5.0)
 
+    async def _meeting_worker(self) -> None:
+        """Background worker that checks for meeting state changes.
+
+        Monitors window titles to detect meeting start/end and reports
+        to the server.
+        """
+        while self._running:
+            try:
+                # Get current window info
+                window = self._window_monitor.get_active_window()
+                if window:
+                    # Check for meeting state change
+                    prev_in_meeting = self._meeting_detector.current_state.in_meeting
+                    meeting_state = self._meeting_detector.check_window(
+                        window.app_name,
+                        window.window_title,
+                    )
+
+                    if meeting_state.in_meeting and not prev_in_meeting:
+                        # Meeting just started
+                        await self._report_meeting_start(meeting_state)
+                    elif not meeting_state.in_meeting and prev_in_meeting:
+                        # Meeting just ended
+                        await self._report_meeting_end()
+
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                self._log.error("Meeting worker error: %s", e)
+
+            # Check every 2 seconds (less frequent than capture tick)
+            await asyncio.sleep(2.0)
+
+    async def _report_meeting_start(self, state: MeetingState) -> None:
+        """Report meeting start to server."""
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{self.config.server_url}/api/meetings/start",
+                    json={
+                        "platform": state.platform.value if state.platform else None,
+                        "window_title": state.window_title,
+                        "detected_at": (
+                            state.started_at.isoformat() if state.started_at else None
+                        ),
+                    },
+                    timeout=10.0,
+                )
+                response.raise_for_status()
+                data = response.json()
+                self._current_meeting_id = data["id"]
+                self._log.info(
+                    "Meeting reported to server: meeting_id=%s", self._current_meeting_id
+                )
+        except Exception as e:
+            self._log.error("Meeting report failed: %s", str(e))
+
+    async def _report_meeting_end(self) -> None:
+        """Report meeting end to server."""
+        if not self._current_meeting_id:
+            return
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{self.config.server_url}/api/meetings/end",
+                    json={
+                        "meeting_id": self._current_meeting_id,
+                    },
+                    timeout=10.0,
+                )
+                response.raise_for_status()
+                self._log.info(
+                    "Meeting end reported: meeting_id=%s", self._current_meeting_id
+                )
+                self._current_meeting_id = None
+        except Exception as e:
+            self._log.error("Meeting end report failed: %s", str(e))
+
     def pause(self) -> None:
         """Pause capture loop."""
         self._capture_loop.pause()
@@ -216,6 +308,14 @@ class CaptureOrchestrator:
             self._upload_task.cancel()
             try:
                 await self._upload_task
+            except asyncio.CancelledError:
+                pass
+
+        # Cancel meeting worker
+        if self._meeting_task and not self._meeting_task.done():
+            self._meeting_task.cancel()
+            try:
+                await self._meeting_task
             except asyncio.CancelledError:
                 pass
 
@@ -243,6 +343,8 @@ class CaptureOrchestrator:
         """
         queue_stats = self._upload_queue.get_stats()
 
+        meeting_state = self._meeting_detector.current_state
+
         return {
             "state": self._capture_loop.state.value,
             "is_paused": self.is_paused,
@@ -258,6 +360,13 @@ class CaptureOrchestrator:
                 "uploading": queue_stats.get("uploading", 0),
                 "failed": queue_stats.get("failed", 0),
                 "total": queue_stats.get("total", 0),
+            },
+            "meeting": {
+                "in_meeting": meeting_state.in_meeting,
+                "platform": (
+                    meeting_state.platform.value if meeting_state.platform else None
+                ),
+                "meeting_id": self._current_meeting_id,
             },
             "data_dir": str(self.config.data_path),
         }
