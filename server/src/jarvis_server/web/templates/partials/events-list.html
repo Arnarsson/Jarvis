@@ -1,0 +1,201 @@
+<!-- Events list for selected day partial -->
+{% if events %}
+<div class="space-y-3">
+    {% for event in events %}
+    <div class="event-card group"
+         hx-get="/api/web/meetings/brief/{{ event.id }}"
+         hx-target="#brief-content"
+         hx-swap="innerHTML"
+         @click="openBrief('{{ event.id }}', '{{ event.summary|e }}')"
+         title="Click to view meeting brief">
+        <!-- Time and duration -->
+        <div class="event-time-block">
+            <div class="event-time">{{ event.start_time.strftime('%H:%M') }}</div>
+            <div class="event-duration">{{ event.duration_str }}</div>
+        </div>
+
+        <!-- Event details -->
+        <div class="event-details">
+            <h3 class="event-title group-hover:text-indigo-600">{{ event.summary }}</h3>
+
+            {% if event.location %}
+            <div class="event-meta">
+                <svg class="event-meta-icon" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                </svg>
+                <span>{{ event.location|truncate(40) }}</span>
+            </div>
+            {% endif %}
+
+            {% if event.meeting_link %}
+            <div class="event-meta">
+                <svg class="event-meta-icon" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+                </svg>
+                <a href="{{ event.meeting_link }}"
+                   target="_blank"
+                   @click.stop
+                   class="text-indigo-600 hover:text-indigo-500 hover:underline">
+                    Join meeting
+                </a>
+            </div>
+            {% endif %}
+
+            {% if event.attendees %}
+            <div class="event-attendees">
+                <div class="event-attendee-avatars">
+                    {% for attendee in event.attendees[:5] %}
+                    <div class="event-attendee-avatar" title="{{ attendee.email }}">
+                        {{ attendee.initials }}
+                    </div>
+                    {% endfor %}
+                    {% if event.attendees|length > 5 %}
+                    <div class="event-attendee-more">
+                        +{{ event.attendees|length - 5 }}
+                    </div>
+                    {% endif %}
+                </div>
+                <span class="event-attendee-count">{{ event.attendees|length }} attendee{{ 's' if event.attendees|length != 1 else '' }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- View brief indicator -->
+        <div class="event-brief-indicator opacity-0 group-hover:opacity-100 transition-opacity">
+            <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <svg class="empty-state-icon" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+    </svg>
+    <p class="empty-state-title">No events on this day</p>
+    <p class="empty-state-description">Enjoy your free time!</p>
+</div>
+{% endif %}
+
+<style>
+/* Event card styles */
+.event-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid #e5e7eb;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.event-card:hover {
+    border-color: #a5b4fc;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+}
+
+.event-time-block {
+    flex-shrink: 0;
+    text-align: center;
+    min-width: 3.5rem;
+}
+
+.event-time {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #374151;
+}
+
+.event-duration {
+    font-size: 0.625rem;
+    color: #9ca3af;
+    margin-top: 0.125rem;
+}
+
+.event-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.event-title {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #111827;
+    transition: color 0.15s ease;
+}
+
+.event-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-top: 0.375rem;
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+.event-meta-icon {
+    flex-shrink: 0;
+    width: 0.875rem;
+    height: 0.875rem;
+}
+
+.event-attendees {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.event-attendee-avatars {
+    display: flex;
+    -webkit-box-pack: end;
+}
+
+.event-attendee-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-left: -0.375rem;
+    font-size: 0.5rem;
+    font-weight: 600;
+    color: #ffffff;
+    background-color: #6366f1;
+    border: 2px solid #ffffff;
+    border-radius: 9999px;
+}
+
+.event-attendee-avatar:first-child {
+    margin-left: 0;
+}
+
+.event-attendee-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-left: -0.375rem;
+    font-size: 0.5rem;
+    font-weight: 500;
+    color: #6b7280;
+    background-color: #f3f4f6;
+    border: 2px solid #ffffff;
+    border-radius: 9999px;
+}
+
+.event-attendee-count {
+    font-size: 0.625rem;
+    color: #9ca3af;
+}
+
+.event-brief-indicator {
+    flex-shrink: 0;
+    align-self: center;
+}
+</style>
