@@ -17,6 +17,7 @@ from jarvis_server import __version__
 from jarvis_server.api.calendar import router as calendar_router
 from jarvis_server.api.captures import get_storage, router as captures_router
 from jarvis_server.api.health import router as health_router
+from jarvis_server.api.meetings import router as meetings_router
 from jarvis_server.api.search import router as search_router
 from jarvis_server.api.timeline import router as timeline_router
 from jarvis_server.imports.api import router as import_router
@@ -123,6 +124,7 @@ def create_app() -> FastAPI:
     app.include_router(calendar_router)
     app.include_router(captures_router)
     app.include_router(health_router)
+    app.include_router(meetings_router)
     app.include_router(search_router)
     app.include_router(timeline_router)
     app.include_router(import_router)
