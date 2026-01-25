@@ -1,67 +1,206 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="space-y-6" x-data="searchPage()">
     <!-- Page header -->
     <div>
         <h1 class="text-2xl font-bold text-gray-900">Search</h1>
-        <p class="mt-1 text-sm text-gray-500">Find anything in your captures and conversations</p>
+        <p class="mt-1 text-sm text-gray-500">Find anything in your captures, conversations, and emails</p>
     </div>
 
     <!-- Search form -->
     <div class="rounded-lg bg-white shadow">
         <div class="p-6">
-            <form action="/search" method="get" class="space-y-4">
+            <div class="space-y-4">
+                <!-- Search input with debounced HTMX trigger -->
                 <div class="flex gap-4">
-                    <input type="text"
-                           name="q"
-                           placeholder="Search for anything..."
-                           class="flex-1 rounded-lg border border-gray-300 px-4 py-3 text-lg focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
-                    <button type="submit"
+                    <div class="relative flex-1">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                            <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                            </svg>
+                        </div>
+                        <input type="text"
+                               name="q"
+                               id="search-input"
+                               x-model="query"
+                               placeholder="Search for anything..."
+                               class="w-full rounded-lg border border-gray-300 py-3 pl-12 pr-4 text-lg focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                               hx-get="/api/web/search"
+                               hx-trigger="keyup changed delay:300ms, search"
+                               hx-target="#search-results"
+                               hx-include="#search-filters"
+                               hx-indicator="#search-indicator">
+                    </div>
+                    <button type="button"
+                            @click="triggerSearch()"
                             class="rounded-lg bg-indigo-600 px-8 py-3 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
                         Search
                     </button>
                 </div>
 
                 <!-- Filters -->
-                <div class="flex flex-wrap gap-4 border-t border-gray-200 pt-4">
+                <div id="search-filters" class="flex flex-wrap items-end gap-6 border-t border-gray-200 pt-4">
+                    <!-- Source filters -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Date Range</label>
-                        <select class="mt-1 rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
-                            <option>Any time</option>
-                            <option>Today</option>
-                            <option>Last 7 days</option>
-                            <option>Last 30 days</option>
-                            <option>Custom range</option>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Sources</label>
+                        <div class="flex flex-wrap gap-3">
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" name="sources" value="screen" checked
+                                       class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                <span class="ml-2 text-sm text-gray-700">
+                                    <span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">Screen</span>
+                                </span>
+                            </label>
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" name="sources" value="chatgpt" checked
+                                       class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                <span class="ml-2 text-sm text-gray-700">
+                                    <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">ChatGPT</span>
+                                </span>
+                            </label>
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" name="sources" value="claude" checked
+                                       class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                <span class="ml-2 text-sm text-gray-700">
+                                    <span class="inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">Claude</span>
+                                </span>
+                            </label>
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" name="sources" value="grok" checked
+                                       class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                <span class="ml-2 text-sm text-gray-700">
+                                    <span class="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">Grok</span>
+                                </span>
+                            </label>
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" name="sources" value="email" checked
+                                       class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                <span class="ml-2 text-sm text-gray-700">
+                                    <span class="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">Email</span>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Date range filter -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
+                        <select name="date_range" x-model="dateRange"
+                                class="rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                            <option value="">Any time</option>
+                            <option value="today">Today</option>
+                            <option value="7d">Last 7 days</option>
+                            <option value="30d">Last 30 days</option>
+                            <option value="90d">Last 90 days</option>
                         </select>
                     </div>
+
+                    <!-- Results limit -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Type</label>
-                        <select class="mt-1 rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
-                            <option>All types</option>
-                            <option>Screenshots</option>
-                            <option>Conversations</option>
-                            <option>Meetings</option>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Results</label>
+                        <select name="limit"
+                                class="rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
                         </select>
                     </div>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 
-    <!-- Search results placeholder -->
-    <div class="rounded-lg bg-white shadow">
-        <div class="p-6">
-            <div class="flex items-center justify-center py-12 text-gray-500">
-                <div class="text-center">
-                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                    </svg>
-                    <h3 class="mt-2 text-sm font-medium text-gray-900">Search your data</h3>
-                    <p class="mt-1 text-sm text-gray-500">Enter a query above to search your captures and conversations</p>
+    <!-- Loading indicator -->
+    <div id="search-indicator" class="htmx-indicator">
+        <div class="flex items-center justify-center py-8">
+            <svg class="h-8 w-8 animate-spin text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="ml-2 text-gray-600">Searching...</span>
+        </div>
+    </div>
+
+    <!-- Search results container -->
+    <div id="search-results">
+        <!-- Empty state (shown before search) -->
+        <div class="rounded-lg bg-white shadow">
+            <div class="p-6">
+                <div class="flex items-center justify-center py-12 text-gray-500">
+                    <div class="text-center">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                        </svg>
+                        <h3 class="mt-2 text-sm font-medium text-gray-900">Search your data</h3>
+                        <p class="mt-1 text-sm text-gray-500">Enter a query above to search your captures, conversations, and emails</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Result detail modal -->
+    <div x-show="showModal"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 overflow-y-auto"
+         @keydown.escape.window="showModal = false"
+         style="display: none;">
+        <div class="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <!-- Overlay -->
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showModal = false"></div>
+
+            <!-- Modal panel -->
+            <div class="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl sm:align-middle">
+                <div id="modal-content" hx-get="" hx-trigger="load">
+                    <!-- Content loaded via HTMX -->
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+{% block extra_scripts %}
+<script>
+function searchPage() {
+    return {
+        query: '',
+        dateRange: '',
+        showModal: false,
+
+        triggerSearch() {
+            const input = document.getElementById('search-input');
+            htmx.trigger(input, 'search');
+        },
+
+        openResult(resultId, source) {
+            const modalContent = document.getElementById('modal-content');
+            modalContent.setAttribute('hx-get', `/api/web/result/${resultId}?source=${source}`);
+            htmx.process(modalContent);
+            htmx.trigger(modalContent, 'load');
+            this.showModal = true;
+        },
+
+        closeModal() {
+            this.showModal = false;
+        }
+    }
+}
+
+// Listen for result clicks from HTMX-loaded content
+document.body.addEventListener('click', function(e) {
+    const resultCard = e.target.closest('[data-result-id]');
+    if (resultCard) {
+        const resultId = resultCard.dataset.resultId;
+        const source = resultCard.dataset.source;
+        Alpine.$data(document.querySelector('[x-data]')).openResult(resultId, source);
+    }
+});
+</script>
+{% endblock %}
 {% endblock %}
