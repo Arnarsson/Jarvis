@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 3 of 7 (MCP Server & Claude Code)
-Plan: 1 of 5 in current phase
+Plan: 2 of 5 in current phase
 Status: In progress
-Last activity: 2026-01-25 -- Completed 03-01-PLAN.md
+Last activity: 2026-01-25 -- Completed 03-02-PLAN.md
 
-Progress: [####################..] 85% (Phase 3: 1/5 plans)
+Progress: [######################] 88% (Phase 3: 2/5 plans)
 
 ## Performance Metrics
 
@@ -121,6 +121,9 @@ Recent decisions affecting current work:
 - [03-01]: structlog configured to stderr before any other imports (stdio transport)
 - [03-01]: httpx.AsyncClient with 25s timeout (margin for MCP 30s timeout)
 - [03-01]: Lazy singleton pattern for HTTP client initialization
+- [03-02]: Regex patterns for prompt injection detection (code blocks, headers, delimiters, instruction markers)
+- [03-02]: 200 char truncation for params, 500 for errors to prevent log bloat
+- [03-02]: Log suspicious inputs BEFORE rejection for security monitoring
 
 ### Pending Todos
 
@@ -133,5 +136,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-25T11:27:00Z
-Stopped at: Completed 03-01-PLAN.md
+Stopped at: Completed 03-02-PLAN.md
 Resume file: None
