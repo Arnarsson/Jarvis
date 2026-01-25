@@ -11,7 +11,12 @@ from .embeddings import get_embedding_processor
 from .ocr import get_ocr_processor
 from ..meetings.tasks import summarize_meeting_task
 from ..transcription.tasks import transcribe_meeting_task
-from .tasks import process_backlog, process_capture, sync_calendar_task
+from .tasks import (
+    process_backlog,
+    process_capture,
+    process_email_embeddings,
+    sync_calendar_task,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +38,7 @@ class WorkerSettings:
         process_capture,
         process_backlog,
         sync_calendar_task,
+        process_email_embeddings,
         transcribe_meeting_task,
         summarize_meeting_task,
     ]

@@ -57,3 +57,25 @@ async def sync_calendar_task(ctx: dict) -> dict:
         f"updated={result['updated']}, deleted={result['deleted']}"
     )
     return result
+
+
+async def process_email_embeddings(ctx: dict, batch_size: int = 20) -> dict:
+    """ARQ task: Process pending email embeddings.
+
+    Generates embeddings for emails with processing_status='pending'
+    and stores them in Qdrant for hybrid search.
+
+    Args:
+        ctx: ARQ context with shared resources
+        batch_size: Maximum emails to process per run
+
+    Returns:
+        Dict with count of processed emails
+    """
+    from jarvis_server.email.embeddings import process_pending_emails
+
+    async with AsyncSessionLocal() as db:
+        processed = await process_pending_emails(db, batch_size=batch_size)
+
+    logger.info(f"Email embeddings processed: {processed}")
+    return {"processed": processed}
