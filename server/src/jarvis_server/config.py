@@ -26,6 +26,7 @@ class Settings(BaseSettings):
 
     # File storage
     storage_path: Path = Path("/data/captures")
+    data_dir: Path = Path("/data")
 
     # Logging
     log_level: str = "INFO"
@@ -33,10 +34,17 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: list[str] = ["*"]
 
+    # API Keys
+    anthropic_api_key: str | None = None
+
+    # Google Calendar
+    google_credentials_path: Path | None = None
+
     model_config = {
         "env_prefix": "JARVIS_",
         "env_file": ".env",
         "env_file_encoding": "utf-8",
+        "extra": "ignore",  # Ignore unknown env vars (e.g., POSTGRES_* for docker)
     }
 
 
