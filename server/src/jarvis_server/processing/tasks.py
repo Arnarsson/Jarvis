@@ -36,3 +36,24 @@ async def process_backlog(ctx: dict) -> dict:
 
     logger.info(f"Queued {len(pending)} captures for processing")
     return {"queued": len(pending)}
+
+
+async def sync_calendar_task(ctx: dict) -> dict:
+    """ARQ task: Sync calendar events in background.
+
+    Performs incremental sync of Google Calendar events to the local database.
+    Uses sync tokens for efficiency after the initial full sync.
+
+    Returns:
+        Dict with counts: {"created": N, "updated": N, "deleted": N}
+    """
+    from jarvis_server.calendar.sync import sync_calendar
+
+    async with AsyncSessionLocal() as db:
+        result = await sync_calendar(db)
+
+    logger.info(
+        f"Calendar sync complete: created={result['created']}, "
+        f"updated={result['updated']}, deleted={result['deleted']}"
+    )
+    return result

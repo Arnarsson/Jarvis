@@ -9,7 +9,7 @@ from ..config import get_settings
 from ..vector.qdrant import get_qdrant, setup_captures_collection
 from .embeddings import get_embedding_processor
 from .ocr import get_ocr_processor
-from .tasks import process_backlog, process_capture
+from .tasks import process_backlog, process_capture, sync_calendar_task
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ class WorkerSettings:
     """ARQ worker settings for background processing."""
 
     # Register task functions
-    functions = [process_capture, process_backlog]
+    functions = [process_capture, process_backlog, sync_calendar_task]
 
     # Cron jobs for backlog processing
     cron_jobs = [

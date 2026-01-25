@@ -1,12 +1,16 @@
-"""Calendar API endpoints for OAuth and event access."""
+"""Calendar API endpoints for OAuth, sync, and event access."""
 
+import json
 from datetime import datetime, timezone
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from jarvis_server.calendar.models import CalendarEvent
 from jarvis_server.calendar.oauth import (
     CalendarAuthRequired,
     CredentialsNotFound,
@@ -15,6 +19,7 @@ from jarvis_server.calendar.oauth import (
     is_authenticated,
     start_oauth_flow,
 )
+from jarvis_server.db.session import get_db
 
 logger = structlog.get_logger(__name__)
 
@@ -53,6 +58,28 @@ class UpcomingEventsResponse(BaseModel):
 
     events: list[CalendarEventResponse]
     count: int
+
+
+class SyncResponse(BaseModel):
+    """Response for sync endpoint."""
+
+    status: str
+    job_id: str | None = None
+    created: int | None = None
+    updated: int | None = None
+    deleted: int | None = None
+
+
+class StoredEventResponse(BaseModel):
+    """Response model for a stored calendar event."""
+
+    id: str
+    summary: str
+    start_time: str
+    end_time: str
+    location: str | None = None
+    meeting_link: str | None = None
+    attendees: list[dict] = []
 
 
 @router.get("/auth/status", response_model=AuthStatusResponse)
@@ -209,3 +236,92 @@ def _extract_meeting_link(event: dict[str, Any]) -> str | None:
                 return word.strip()
 
     return None
+
+
+@router.post("/sync", response_model=SyncResponse)
+async def trigger_sync(
+    request: Request,
+    background: bool = False,
+    db: AsyncSession = Depends(get_db),
+) -> SyncResponse:
+    """Trigger calendar sync.
+
+    Syncs calendar events from Google Calendar to the local database.
+    Uses incremental sync tokens to efficiently fetch only changed events.
+
+    Args:
+        background: If True, queue as ARQ background task. If False, sync synchronously.
+        db: Database session.
+
+    Returns:
+        Sync status with counts (if synchronous) or job ID (if background).
+
+    Raises:
+        HTTPException: If authentication is required.
+    """
+    if not is_authenticated():
+        raise HTTPException(status_code=401, detail="Calendar not authenticated")
+
+    if background:
+        # Queue ARQ task
+        arq_pool = request.app.state.arq_pool
+        job = await arq_pool.enqueue_job("sync_calendar_task")
+        logger.info("calendar_sync_queued", job_id=job.job_id)
+        return SyncResponse(status="queued", job_id=job.job_id)
+    else:
+        from jarvis_server.calendar.sync import sync_calendar
+
+        result = await sync_calendar(db)
+        logger.info("calendar_sync_completed", **result)
+        return SyncResponse(status="completed", **result)
+
+
+@router.get("/events", response_model=list[StoredEventResponse])
+async def list_events(
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+) -> list[StoredEventResponse]:
+    """List synced calendar events from the local database.
+
+    Returns events that have been synced from Google Calendar.
+    Use /sync endpoint to sync events first.
+
+    Args:
+        start_date: Filter events starting after this date (inclusive).
+        end_date: Filter events ending before this date (inclusive).
+        limit: Maximum events to return (default 50, max 100).
+
+    Returns:
+        List of stored calendar events.
+    """
+    # Cap the limit
+    limit = min(limit, 100)
+
+    query = select(CalendarEvent).order_by(CalendarEvent.start_time)
+
+    if start_date:
+        query = query.where(CalendarEvent.start_time >= start_date)
+    if end_date:
+        query = query.where(CalendarEvent.end_time <= end_date)
+
+    query = query.limit(limit)
+
+    result = await db.execute(query)
+    events = result.scalars().all()
+
+    logger.info("calendar_events_listed", count=len(events))
+
+    return [
+        StoredEventResponse(
+            id=e.id,
+            summary=e.summary,
+            start_time=e.start_time.isoformat(),
+            end_time=e.end_time.isoformat(),
+            location=e.location,
+            meeting_link=e.meeting_link,
+            attendees=json.loads(e.attendees_json) if e.attendees_json else [],
+        )
+        for e in events
+    ]
