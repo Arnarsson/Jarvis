@@ -1,16 +1,25 @@
 """Meeting lifecycle API endpoints."""
 
+import os
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Optional
 
+import aiofiles
 import structlog
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from jarvis_server.calendar.models import CalendarEvent, Meeting
 from jarvis_server.db.session import get_db
+
+def _get_audio_storage_path() -> Path:
+    """Get audio storage path, creating directory if needed."""
+    path = Path(os.getenv("JARVIS_DATA_DIR", "/data")) / "meetings" / "audio"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 router = APIRouter(prefix="/api/meetings", tags=["meetings"])
 logger = structlog.get_logger()
@@ -285,3 +294,128 @@ async def get_upcoming_briefs(
             logger.warning("brief_skipped", event_id=event.id, error=str(e))
 
     return briefs
+
+
+# --- Audio Recording Endpoints ---
+
+
+class AudioUploadResponse(BaseModel):
+    """Response for audio upload."""
+
+    meeting_id: str
+    audio_path: str
+    file_size: int
+    queued_for_transcription: bool
+
+
+@router.post("/audio/{meeting_id}", response_model=AudioUploadResponse)
+async def upload_audio(
+    meeting_id: str,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+) -> AudioUploadResponse:
+    """Upload meeting audio file for transcription.
+
+    Args:
+        meeting_id: The meeting to associate audio with
+        file: WAV audio file
+
+    Returns:
+        Audio upload response with file info and transcription status
+
+    Raises:
+        HTTPException 404: Meeting not found
+        HTTPException 403: Recording consent not given for this meeting
+        HTTPException 400: Invalid file type (only WAV accepted)
+    """
+    # Verify meeting exists
+    result = await db.execute(select(Meeting).where(Meeting.id == meeting_id))
+    meeting = result.scalar_one_or_none()
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+
+    # Verify consent was given
+    if not meeting.consent_given:
+        raise HTTPException(
+            status_code=403, detail="Recording consent not recorded for this meeting"
+        )
+
+    # Validate file type
+    if not file.filename or not file.filename.endswith(".wav"):
+        raise HTTPException(status_code=400, detail="Only WAV files accepted")
+
+    # Save file
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    filename = f"meeting_{meeting_id}_{timestamp}.wav"
+    filepath = _get_audio_storage_path() / filename
+
+    async with aiofiles.open(filepath, "wb") as f:
+        content = await file.read()
+        await f.write(content)
+
+    file_size = filepath.stat().st_size
+
+    # Update meeting record
+    meeting.audio_path = str(filepath)
+    meeting.transcript_status = "pending"
+    await db.commit()
+
+    # Queue transcription task
+    queued = False
+    try:
+        from jarvis_server.processing.tasks import get_arq_pool
+
+        pool = await get_arq_pool()
+        await pool.enqueue_job("transcribe_meeting_task", meeting_id)
+        queued = True
+    except Exception as e:
+        logger.warning(
+            "transcription_queue_failed", meeting_id=meeting_id, error=str(e)
+        )
+
+    logger.info(
+        "audio_uploaded",
+        meeting_id=meeting_id,
+        filepath=str(filepath),
+        file_size=file_size,
+        queued=queued,
+    )
+
+    return AudioUploadResponse(
+        meeting_id=meeting_id,
+        audio_path=str(filepath),
+        file_size=file_size,
+        queued_for_transcription=queued,
+    )
+
+
+@router.post("/consent/{meeting_id}")
+async def record_consent(
+    meeting_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Record that user has consented to audio recording for this meeting.
+
+    This endpoint is called by the agent when the user approves recording.
+
+    Args:
+        meeting_id: The meeting to record consent for
+
+    Returns:
+        Status confirmation
+
+    Raises:
+        HTTPException 404: Meeting not found
+    """
+    result = await db.execute(select(Meeting).where(Meeting.id == meeting_id))
+    meeting = result.scalar_one_or_none()
+
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+
+    meeting.consent_given = True
+    await db.commit()
+
+    logger.info("consent_recorded", meeting_id=meeting_id)
+
+    return {"status": "consent_recorded", "meeting_id": meeting_id}
