@@ -73,6 +73,17 @@ async def transcribe_meeting_task(ctx: dict, meeting_id: str) -> dict:
                 text_length=len(transcription_result.full_text),
             )
 
+            # Queue summarization task
+            try:
+                redis = ctx.get("redis")
+                if redis:
+                    await redis.enqueue_job("summarize_meeting_task", meeting_id)
+                    logger.info("summarization_queued", meeting_id=meeting_id)
+            except Exception as e:
+                logger.warning(
+                    "summarization_queue_failed", meeting_id=meeting_id, error=str(e)
+                )
+
             return {
                 "status": "completed",
                 "meeting_id": meeting_id,
