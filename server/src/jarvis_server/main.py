@@ -4,6 +4,7 @@ Configures the FastAPI app with routers, middleware, and lifecycle management.
 """
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncGenerator
 
 import structlog
@@ -12,6 +13,7 @@ from arq import create_pool
 from arq.connections import RedisSettings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from jarvis_server import __version__
 from jarvis_server.api.calendar import router as calendar_router
@@ -22,6 +24,7 @@ from jarvis_server.api.meetings import router as meetings_router
 from jarvis_server.api.search import router as search_router
 from jarvis_server.api.timeline import router as timeline_router
 from jarvis_server.imports.api import router as import_router
+from jarvis_server.web import router as web_router
 from jarvis_server.config import get_settings
 
 logger = structlog.get_logger(__name__)
@@ -121,7 +124,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Include routers
+    # Include API routers
     app.include_router(calendar_router)
     app.include_router(captures_router)
     app.include_router(email_router)
@@ -130,6 +133,18 @@ def create_app() -> FastAPI:
     app.include_router(search_router)
     app.include_router(timeline_router)
     app.include_router(import_router)
+
+    # Include web UI router (must be after API routers to avoid route conflicts)
+    app.include_router(web_router)
+
+    # Mount static files for web UI
+    static_dir = Path(__file__).parent / "web" / "static"
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+    # Mount captures directory for serving screenshots
+    captures_dir = settings.storage_path
+    if captures_dir.exists():
+        app.mount("/captures", StaticFiles(directory=captures_dir), name="captures")
 
     return app
 
