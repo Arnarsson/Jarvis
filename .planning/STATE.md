@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Never lose context -- whether away 2 hours or 2 months, Jarvis catches you up on any project, decision, or thread.
-**Current focus:** Phase 4: Calendar & Meeting Intelligence
+**Current focus:** Phase 5: Email & Communication Context
 
 ## Current Position
 
-Phase: 4 of 7 (Calendar & Meeting Intelligence)
-Plan: 9 of 9 in current phase
-Status: **COMPLETE**
-Last activity: 2026-01-25 -- Completed Phase 4 verification
+Phase: 5 of 7 (Email & Communication Context)
+Plan: 1 of 5 in current phase
+Status: In progress
+Last activity: 2026-01-25 -- Completed 05-01-PLAN.md
 
-Progress: [#############░░░░░░░] 59% (36/63 plans complete)
+Progress: [#############░░░░░░░] 60% (37/63 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 35
+- Total plans completed: 37
 - Average duration: 3 min
-- Total execution time: 98 min
+- Total execution time: 102 min
 
 **By Phase:**
 
@@ -30,10 +30,11 @@ Progress: [#############░░░░░░░] 59% (36/63 plans complete)
 | 01 | 13 | 34 min | 2.6 min |
 | 02 | 9 | 21 min | 2.3 min |
 | 03 | 5 | 15 min | 3.0 min |
-| 04 | 8 | 28 min | 3.5 min |
+| 04 | 9 | 28 min | 3.1 min |
+| 05 | 1 | 4 min | 4.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-04 (5 min), 04-05 (3 min), 04-06 (3 min), 04-07 (4 min), 04-08 (2 min)
+- Last 5 plans: 04-06 (3 min), 04-07 (4 min), 04-08 (2 min), 04-09 (2 min), 05-01 (4 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -165,6 +166,10 @@ Recent decisions affecting current work:
 - [04-09]: OAuth helper script for Docker environments (can't open browser in container)
 - [04-09]: google_event_id increased to 255 chars for recurring event IDs
 - [04-09]: Handle 400 errors only when sync_token present (avoid infinite retry loop)
+- [05-01]: Port 8091 for Gmail OAuth callback (calendar uses 8090)
+- [05-01]: gmail.readonly scope for v1 security
+- [05-01]: Separate email models from db/models.py (no circular import)
+- [05-01]: Email models imported in alembic/env.py for autogenerate
 
 ### Pending Todos
 
@@ -176,7 +181,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-25T14:20:00Z
-Stopped at: **Phase 4 Complete** - All verification passed
+Last session: 2026-01-25T15:32:09Z
+Stopped at: Completed 05-01-PLAN.md
 Resume file: None
-Next: Phase 5 (Email & Communication Context)
+Next: 05-02-PLAN.md (Email sync)
