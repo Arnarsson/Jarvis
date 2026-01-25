@@ -888,3 +888,347 @@ async def generate_meeting_brief(
     except Exception as e:
         logger.error(f"Brief generation failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to generate brief")
+
+
+# --- Settings Endpoints ---
+
+
+def _format_bytes(size_bytes: int) -> str:
+    """Format bytes as human-readable string."""
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    elif size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.1f} KB"
+    elif size_bytes < 1024 * 1024 * 1024:
+        return f"{size_bytes / (1024 * 1024):.1f} MB"
+    else:
+        return f"{size_bytes / (1024 * 1024 * 1024):.2f} GB"
+
+
+def _get_dir_size(path: Path) -> int:
+    """Calculate total size of directory in bytes."""
+    total = 0
+    try:
+        if path.exists() and path.is_dir():
+            for f in path.rglob("*"):
+                if f.is_file():
+                    total += f.stat().st_size
+    except Exception:
+        pass
+    return total
+
+
+@router.get("/settings/status", response_class=HTMLResponse)
+async def get_settings_status(
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+) -> HTMLResponse:
+    """Get system status as HTML fragment.
+
+    Checks health of all services: Server, PostgreSQL, Redis, Qdrant.
+    Returns status cards partial with current status and stats.
+    """
+    from datetime import datetime, timezone
+
+    import redis
+    from qdrant_client import QdrantClient
+    from sqlalchemy import text
+
+    from jarvis_server import __version__
+    from jarvis_server.config import get_settings
+
+    settings = get_settings()
+
+    # Server status
+    server_status = {"status": "healthy", "version": __version__}
+
+    # PostgreSQL status
+    postgres_status = {"status": "unknown", "captures_count": 0}
+    try:
+        await session.execute(text("SELECT 1"))
+        # Count captures
+        result = await session.execute(select(func.count(Capture.id)))
+        captures_count = result.scalar() or 0
+        postgres_status = {"status": "healthy", "captures_count": captures_count}
+    except Exception as e:
+        logger.warning(f"PostgreSQL health check failed: {e}")
+        postgres_status = {"status": "unhealthy", "captures_count": 0}
+        server_status["status"] = "degraded"
+
+    # Redis status
+    redis_status = {"status": "unknown"}
+    try:
+        r = redis.Redis(host=settings.redis_host, port=settings.redis_port)
+        r.ping()
+        redis_status = {"status": "healthy"}
+    except Exception as e:
+        logger.warning(f"Redis health check failed: {e}")
+        redis_status = {"status": "unhealthy"}
+        server_status["status"] = "degraded"
+
+    # Qdrant status
+    qdrant_status = {"status": "unknown", "vectors_count": 0}
+    try:
+        client = QdrantClient(host=settings.qdrant_host, port=settings.qdrant_port)
+        collection_info = client.get_collection("captures")
+        vectors_count = collection_info.points_count or 0
+        qdrant_status = {"status": "healthy", "vectors_count": vectors_count}
+    except Exception as e:
+        logger.warning(f"Qdrant health check failed: {e}")
+        qdrant_status = {"status": "unhealthy", "vectors_count": 0}
+        server_status["status"] = "degraded"
+
+    # Storage stats
+    storage_path = settings.storage_path
+    storage_size = _get_dir_size(storage_path)
+    storage_status = {
+        "used_bytes": storage_size,
+        "used_formatted": _format_bytes(storage_size),
+        "used_percent": min(100, int(storage_size / (100 * 1024 * 1024 * 1024) * 100)),  # Assume 100GB max
+        "captures_count": postgres_status["captures_count"],
+        "path": str(storage_path),
+    }
+
+    return templates.TemplateResponse(
+        request=request,
+        name="partials/status-cards.html",
+        context={
+            "server": server_status,
+            "postgres": postgres_status,
+            "redis": redis_status,
+            "qdrant": qdrant_status,
+            "storage": storage_status,
+            "checked_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
+        },
+    )
+
+
+@router.get("/settings/integrations", response_class=HTMLResponse)
+async def get_settings_integrations(
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+) -> HTMLResponse:
+    """Get integration settings as HTML fragment.
+
+    Shows status of Google Calendar, Gmail, and conversation imports.
+    """
+    from jarvis_server.calendar.models import CalendarEvent, SyncState
+    from jarvis_server.calendar.oauth import credentials_exist as calendar_credentials_exist
+    from jarvis_server.calendar.oauth import is_authenticated as calendar_is_authenticated
+    from jarvis_server.db.models import ConversationRecord
+    from jarvis_server.email.models import EmailMessage, EmailSyncState
+    from jarvis_server.email.oauth import credentials_exist as gmail_credentials_exist
+    from jarvis_server.email.oauth import is_authenticated as gmail_is_authenticated
+
+    # Google Calendar status
+    calendar_authenticated = calendar_is_authenticated()
+    calendar_events_count = 0
+    calendar_last_sync = None
+
+    if calendar_authenticated:
+        # Count events
+        result = await session.execute(select(func.count(CalendarEvent.id)))
+        calendar_events_count = result.scalar() or 0
+
+        # Get last sync time
+        sync_result = await session.execute(
+            select(SyncState).where(SyncState.id == "calendar_primary")
+        )
+        sync_state = sync_result.scalar_one_or_none()
+        if sync_state:
+            # SyncState only stores token, get most recent event sync time
+            event_result = await session.execute(
+                select(CalendarEvent.synced_at)
+                .order_by(CalendarEvent.synced_at.desc())
+                .limit(1)
+            )
+            last_synced = event_result.scalar()
+            if last_synced:
+                calendar_last_sync = last_synced.strftime("%Y-%m-%d %H:%M")
+
+    calendar_status = {
+        "authenticated": calendar_authenticated,
+        "credentials_exist": calendar_credentials_exist(),
+        "events_count": calendar_events_count,
+        "last_sync": calendar_last_sync,
+    }
+
+    # Gmail status
+    gmail_authenticated = gmail_is_authenticated()
+    gmail_emails_count = 0
+    gmail_last_sync = None
+
+    if gmail_authenticated:
+        # Count emails
+        result = await session.execute(select(func.count(EmailMessage.id)))
+        gmail_emails_count = result.scalar() or 0
+
+        # Get last sync time
+        sync_result = await session.execute(
+            select(EmailSyncState).where(EmailSyncState.id == "gmail_primary")
+        )
+        sync_state = sync_result.scalar_one_or_none()
+        if sync_state and hasattr(sync_state, "updated_at"):
+            gmail_last_sync = sync_state.updated_at.strftime("%Y-%m-%d %H:%M")
+
+    gmail_status = {
+        "authenticated": gmail_authenticated,
+        "credentials_exist": gmail_credentials_exist(),
+        "emails_count": gmail_emails_count,
+        "last_sync": gmail_last_sync,
+    }
+
+    # Conversations count
+    conversations_result = await session.execute(select(func.count(ConversationRecord.id)))
+    conversations_count = conversations_result.scalar() or 0
+
+    conversations_status = {
+        "count": conversations_count,
+    }
+
+    return templates.TemplateResponse(
+        request=request,
+        name="partials/integration-settings.html",
+        context={
+            "calendar": calendar_status,
+            "gmail": gmail_status,
+            "conversations": conversations_status,
+            "sync_result": None,
+        },
+    )
+
+
+@router.post("/settings/calendar/sync", response_class=HTMLResponse)
+async def trigger_calendar_sync(
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+) -> HTMLResponse:
+    """Trigger calendar sync and return updated integrations status.
+
+    Performs a calendar sync and returns the integration settings partial
+    with a success message.
+    """
+    from jarvis_server.calendar.oauth import CalendarAuthRequired
+    from jarvis_server.calendar.sync import sync_calendar
+
+    sync_result_msg = None
+
+    try:
+        result = await sync_calendar(session)
+        created = result.get("created", 0)
+        updated = result.get("updated", 0)
+        deleted = result.get("deleted", 0)
+        sync_result_msg = f"Calendar synced: {created} created, {updated} updated, {deleted} deleted"
+    except CalendarAuthRequired:
+        sync_result_msg = "Calendar sync failed: authentication required"
+    except Exception as e:
+        logger.error(f"Calendar sync failed: {e}", exc_info=True)
+        sync_result_msg = f"Calendar sync failed: {str(e)[:50]}"
+
+    # Return updated integrations partial
+    return await _get_integrations_with_result(request, session, sync_result_msg)
+
+
+@router.post("/settings/gmail/sync", response_class=HTMLResponse)
+async def trigger_gmail_sync(
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+) -> HTMLResponse:
+    """Trigger Gmail sync and return updated integrations status.
+
+    Performs an email sync and returns the integration settings partial
+    with a success message.
+    """
+    from jarvis_server.email.oauth import GmailAuthRequired
+    from jarvis_server.email.sync import sync_emails
+
+    sync_result_msg = None
+
+    try:
+        result = await sync_emails(session)
+        created = result.get("created", 0)
+        updated = result.get("updated", 0)
+        deleted = result.get("deleted", 0)
+        sync_result_msg = f"Gmail synced: {created} created, {updated} updated, {deleted} deleted"
+    except GmailAuthRequired:
+        sync_result_msg = "Gmail sync failed: authentication required"
+    except Exception as e:
+        logger.error(f"Gmail sync failed: {e}", exc_info=True)
+        sync_result_msg = f"Gmail sync failed: {str(e)[:50]}"
+
+    # Return updated integrations partial
+    return await _get_integrations_with_result(request, session, sync_result_msg)
+
+
+async def _get_integrations_with_result(
+    request: Request,
+    session: AsyncSession,
+    sync_result_msg: str | None,
+) -> HTMLResponse:
+    """Helper to get integrations partial with a sync result message."""
+    from jarvis_server.calendar.models import CalendarEvent, SyncState
+    from jarvis_server.calendar.oauth import credentials_exist as calendar_credentials_exist
+    from jarvis_server.calendar.oauth import is_authenticated as calendar_is_authenticated
+    from jarvis_server.db.models import ConversationRecord
+    from jarvis_server.email.models import EmailMessage, EmailSyncState
+    from jarvis_server.email.oauth import credentials_exist as gmail_credentials_exist
+    from jarvis_server.email.oauth import is_authenticated as gmail_is_authenticated
+
+    # Calendar status
+    calendar_authenticated = calendar_is_authenticated()
+    calendar_events_count = 0
+    calendar_last_sync = None
+
+    if calendar_authenticated:
+        result = await session.execute(select(func.count(CalendarEvent.id)))
+        calendar_events_count = result.scalar() or 0
+        event_result = await session.execute(
+            select(CalendarEvent.synced_at)
+            .order_by(CalendarEvent.synced_at.desc())
+            .limit(1)
+        )
+        last_synced = event_result.scalar()
+        if last_synced:
+            calendar_last_sync = last_synced.strftime("%Y-%m-%d %H:%M")
+
+    # Gmail status
+    gmail_authenticated = gmail_is_authenticated()
+    gmail_emails_count = 0
+    gmail_last_sync = None
+
+    if gmail_authenticated:
+        result = await session.execute(select(func.count(EmailMessage.id)))
+        gmail_emails_count = result.scalar() or 0
+        sync_result = await session.execute(
+            select(EmailSyncState).where(EmailSyncState.id == "gmail_primary")
+        )
+        sync_state = sync_result.scalar_one_or_none()
+        if sync_state and hasattr(sync_state, "updated_at"):
+            gmail_last_sync = sync_state.updated_at.strftime("%Y-%m-%d %H:%M")
+
+    # Conversations count
+    conversations_result = await session.execute(select(func.count(ConversationRecord.id)))
+    conversations_count = conversations_result.scalar() or 0
+
+    return templates.TemplateResponse(
+        request=request,
+        name="partials/integration-settings.html",
+        context={
+            "calendar": {
+                "authenticated": calendar_authenticated,
+                "credentials_exist": calendar_credentials_exist(),
+                "events_count": calendar_events_count,
+                "last_sync": calendar_last_sync,
+            },
+            "gmail": {
+                "authenticated": gmail_authenticated,
+                "credentials_exist": gmail_credentials_exist(),
+                "emails_count": gmail_emails_count,
+                "last_sync": gmail_last_sync,
+            },
+            "conversations": {
+                "count": conversations_count,
+            },
+            "sync_result": sync_result_msg,
+        },
+    )

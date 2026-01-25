@@ -4,10 +4,13 @@ Serves HTML pages rendered with Jinja2 templates.
 """
 
 from pathlib import Path
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+
+from jarvis_server.config import get_settings
 
 router = APIRouter(tags=["web"])
 
@@ -59,8 +62,20 @@ async def calendar(request: Request) -> HTMLResponse:
 @router.get("/settings", response_class=HTMLResponse)
 async def settings(request: Request) -> HTMLResponse:
     """Settings page - configuration options."""
+    config = get_settings()
+
+    # Parse database URL to show host only (hide credentials)
+    parsed_db = urlparse(config.database_url)
+    database_host = f"{parsed_db.hostname}:{parsed_db.port}" if parsed_db.port else parsed_db.hostname
+
     return templates.TemplateResponse(
         request=request,
         name="settings.html",
-        context={"page_title": "Settings"},
+        context={
+            "page_title": "Settings",
+            "storage_path": str(config.storage_path),
+            "data_dir": str(config.data_dir),
+            "database_host": database_host or "localhost",
+            "log_level": config.log_level,
+        },
     )
