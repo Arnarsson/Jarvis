@@ -37,6 +37,8 @@ dependencies = [
     "google-api-python-client>=2.187.0",
     "google-auth-oauthlib>=1.2.0",
     "google-auth>=2.30.0",
+    # LLM API
+    "anthropic>=0.39.0",
 ]
 
 [project.optional-dependencies]
