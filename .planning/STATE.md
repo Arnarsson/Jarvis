@@ -173,6 +173,10 @@ Recent decisions affecting current work:
 - [05-03]: Reuse EmbeddingProcessor for email embeddings (consistency with captures)
 - [05-03]: Store emails in same Qdrant collection with source="email" filter
 - [05-03]: text_preview formatted as "Email: {subject}\nFrom: {sender}"
+- [07-01]: TailwindCSS via CDN (no build step needed)
+- [07-01]: HTMX for partial page updates (server-rendered HTML)
+- [07-01]: Alpine.js for client-side state (lightweight, HTMX-friendly)
+- [07-01]: Jinja2 template inheritance pattern
 
 ### Pending Todos
 
