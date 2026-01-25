@@ -5,121 +5,117 @@
     <!-- Page header -->
     <div>
         <h1 class="text-2xl font-bold text-gray-900">Settings</h1>
-        <p class="mt-1 text-sm text-gray-500">Configure your Jarvis installation</p>
+        <p class="mt-1 text-sm text-gray-500">System status, integrations, and storage information</p>
     </div>
 
-    <!-- Settings sections -->
-    <div class="space-y-6">
-        <!-- Capture settings -->
-        <div class="rounded-lg bg-white shadow">
-            <div class="border-b border-gray-200 px-4 py-5 sm:px-6">
-                <h2 class="text-lg font-medium text-gray-900">Capture Settings</h2>
+    <!-- System Status Section -->
+    <div class="rounded-lg bg-white shadow">
+        <div class="border-b border-gray-200 px-4 py-5 sm:px-6">
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-medium text-gray-900">System Status</h2>
+                <button type="button"
+                        hx-get="/api/web/settings/status"
+                        hx-target="#status-cards"
+                        hx-swap="innerHTML"
+                        class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                    <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                    Refresh
+                </button>
             </div>
-            <div class="p-6 space-y-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <label class="text-sm font-medium text-gray-900">Capture Interval</label>
-                        <p class="text-sm text-gray-500">How often to take screenshots</p>
-                    </div>
-                    <select class="rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
-                        <option>5 seconds</option>
-                        <option>10 seconds</option>
-                        <option selected>30 seconds</option>
-                        <option>60 seconds</option>
-                    </select>
-                </div>
-                <div class="flex items-center justify-between">
-                    <div>
-                        <label class="text-sm font-medium text-gray-900">Pause on Idle</label>
-                        <p class="text-sm text-gray-500">Stop capturing when no activity detected</p>
-                    </div>
-                    <button type="button" class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-indigo-600 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2" role="switch" aria-checked="true">
-                        <span class="translate-x-5 pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
-                    </button>
+        </div>
+        <div id="status-cards" class="p-6"
+             hx-get="/api/web/settings/status"
+             hx-trigger="load"
+             hx-swap="innerHTML">
+            <!-- Status cards loaded via HTMX -->
+            <div class="flex items-center justify-center py-8">
+                <div class="flex items-center space-x-2 text-gray-500">
+                    <svg class="h-5 w-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Loading status...</span>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Privacy settings -->
-        <div class="rounded-lg bg-white shadow">
-            <div class="border-b border-gray-200 px-4 py-5 sm:px-6">
-                <h2 class="text-lg font-medium text-gray-900">Privacy</h2>
+    <!-- Integrations Section -->
+    <div class="rounded-lg bg-white shadow">
+        <div class="border-b border-gray-200 px-4 py-5 sm:px-6">
+            <h2 class="text-lg font-medium text-gray-900">Integrations</h2>
+        </div>
+        <div id="integration-settings"
+             hx-get="/api/web/settings/integrations"
+             hx-trigger="load"
+             hx-swap="innerHTML">
+            <!-- Integration settings loaded via HTMX -->
+            <div class="flex items-center justify-center py-8">
+                <div class="flex items-center space-x-2 text-gray-500">
+                    <svg class="h-5 w-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Loading integrations...</span>
+                </div>
             </div>
-            <div class="p-6 space-y-4">
+        </div>
+    </div>
+
+    <!-- Capture Settings (read-only display) -->
+    <div class="rounded-lg bg-white shadow">
+        <div class="border-b border-gray-200 px-4 py-5 sm:px-6">
+            <h2 class="text-lg font-medium text-gray-900">Capture Configuration</h2>
+            <p class="mt-1 text-sm text-gray-500">Agent capture settings (configured via environment variables)</p>
+        </div>
+        <div class="p-6">
+            <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
                 <div>
-                    <label class="text-sm font-medium text-gray-900">Excluded Applications</label>
-                    <p class="text-sm text-gray-500 mb-2">Screenshots won't be taken when these apps are active</p>
-                    <div class="flex flex-wrap gap-2">
-                        <span class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-800">
-                            1Password
-                            <button type="button" class="ml-1 text-gray-400 hover:text-gray-600">&times;</button>
-                        </span>
-                        <span class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-800">
-                            Private Browser
-                            <button type="button" class="ml-1 text-gray-400 hover:text-gray-600">&times;</button>
-                        </span>
-                    </div>
+                    <dt class="text-sm font-medium text-gray-500">Storage Path</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ storage_path }}</dd>
                 </div>
-                <div class="flex items-center justify-between">
-                    <div>
-                        <label class="text-sm font-medium text-gray-900">OCR Text Anonymization</label>
-                        <p class="text-sm text-gray-500">Automatically redact sensitive data (SSN, credit cards, etc.)</p>
-                    </div>
-                    <button type="button" class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-indigo-600 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2" role="switch" aria-checked="true">
-                        <span class="translate-x-5 pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
-                    </button>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Data Directory</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ data_dir }}</dd>
                 </div>
-            </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Database</dt>
+                    <dd class="mt-1 text-sm text-gray-900 truncate" title="{{ database_host }}">{{ database_host }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Log Level</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ log_level }}</dd>
+                </div>
+            </dl>
         </div>
+    </div>
 
-        <!-- Integrations -->
-        <div class="rounded-lg bg-white shadow">
-            <div class="border-b border-gray-200 px-4 py-5 sm:px-6">
-                <h2 class="text-lg font-medium text-gray-900">Integrations</h2>
-            </div>
-            <div class="p-6 space-y-4">
-                <div class="flex items-center justify-between py-3 border-b border-gray-100">
-                    <div class="flex items-center space-x-3">
-                        <div class="h-10 w-10 rounded-lg bg-red-100 flex items-center justify-center">
-                            <span class="text-red-600 font-medium">G</span>
-                        </div>
-                        <div>
-                            <p class="text-sm font-medium text-gray-900">Google Calendar</p>
-                            <p class="text-sm text-gray-500">Sync your calendar events</p>
-                        </div>
-                    </div>
-                    <button type="button" class="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200">
-                        Connect
-                    </button>
-                </div>
-                <div class="flex items-center justify-between py-3">
-                    <div class="flex items-center space-x-3">
-                        <div class="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                            <span class="text-blue-600 font-medium">S</span>
-                        </div>
-                        <div>
-                            <p class="text-sm font-medium text-gray-900">Slack</p>
-                            <p class="text-sm text-gray-500">Import conversations</p>
-                        </div>
-                    </div>
-                    <span class="text-sm text-gray-500">Coming soon</span>
-                </div>
-            </div>
+    <!-- Privacy Settings (read-only display) -->
+    <div class="rounded-lg bg-white shadow">
+        <div class="border-b border-gray-200 px-4 py-5 sm:px-6">
+            <h2 class="text-lg font-medium text-gray-900">Privacy</h2>
+            <p class="mt-1 text-sm text-gray-500">Privacy features are enabled by default</p>
         </div>
-
-        <!-- Storage info -->
-        <div class="rounded-lg bg-white shadow">
-            <div class="border-b border-gray-200 px-4 py-5 sm:px-6">
-                <h2 class="text-lg font-medium text-gray-900">Storage</h2>
+        <div class="p-6 space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-900">OCR Text Anonymization</p>
+                    <p class="text-sm text-gray-500">Automatically redact sensitive data (SSN, credit cards, etc.)</p>
+                </div>
+                <span class="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800">
+                    Enabled
+                </span>
             </div>
-            <div class="p-6">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm font-medium text-gray-900">Used Space</span>
-                    <span class="text-sm text-gray-500">12.4 GB of 100 GB</span>
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-900">Localhost-only Binding</p>
+                    <p class="text-sm text-gray-500">All services bound to 127.0.0.1 for Tailscale-only access</p>
                 </div>
-                <div class="h-2 w-full rounded-full bg-gray-200">
-                    <div class="h-2 rounded-full bg-indigo-600" style="width: 12.4%"></div>
-                </div>
+                <span class="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800">
+                    Enabled
+                </span>
             </div>
         </div>
     </div>
