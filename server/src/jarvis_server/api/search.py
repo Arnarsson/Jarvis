@@ -19,7 +19,7 @@ async def search_memories(request: SearchRequest) -> SearchResponse:
 
     Filters:
     - start_date/end_date: Time range filter
-    - sources: Filter by content source (screen, chatgpt, claude, grok)
+    - sources: Filter by content source (screen, chatgpt, claude, grok, email)
     """
     try:
         results = hybrid_search(request)

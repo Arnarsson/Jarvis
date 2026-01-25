@@ -13,7 +13,7 @@ class SearchRequest(BaseModel):
     end_date: Optional[datetime] = Field(default=None, description="Filter: latest timestamp")
     sources: Optional[list[str]] = Field(
         default=None,
-        description="Filter by source type: screen, chatgpt, claude, grok",
+        description="Filter by source type: screen, chatgpt, claude, grok, email",
     )
 
     class Config:
@@ -34,7 +34,7 @@ class SearchResult(BaseModel):
     score: float = Field(..., description="Relevance score (higher is better)")
     text_preview: str = Field(..., description="Preview of matching text")
     timestamp: datetime = Field(..., description="When content was captured/created")
-    source: str = Field(..., description="Content source: screen, chatgpt, claude, grok")
+    source: str = Field(..., description="Content source: screen, chatgpt, claude, grok, email")
     filepath: Optional[str] = Field(default=None, description="Path to image file (for screen captures)")
 
 
