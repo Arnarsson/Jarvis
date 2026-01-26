@@ -2,9 +2,12 @@ import { useLocation, Link } from 'react-router-dom'
 import { useAppStore } from '../../stores/app.ts'
 import { useEffect } from 'react'
 import { fetchHealth } from '../../api/health.ts'
+import { QuickCapture } from '../dashboard/QuickCapture.tsx'
 
 const navItems = [
   { path: '/', label: 'OVERVIEW' },
+  { path: '/daily3', label: 'DAILY 3' },
+  { path: '/focus', label: 'FOCUS' },
   { path: '/memory', label: 'MEMORY' },
   { path: '/schedule', label: 'SCHEDULE' },
   { path: '/comms', label: 'COMMS' },
@@ -159,6 +162,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen bg-bg">
+      {/* Quick Capture FAB + Modal */}
+      <QuickCapture />
+
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div

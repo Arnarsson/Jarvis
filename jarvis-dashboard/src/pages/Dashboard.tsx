@@ -1,4 +1,6 @@
 import { HeroHeader } from '../components/dashboard/HeroHeader.tsx'
+import { MomentumTracker } from '../components/dashboard/MomentumTracker.tsx'
+import { SmartSummary } from '../components/dashboard/SmartSummary.tsx'
 import { StatsGrid } from '../components/dashboard/StatsGrid.tsx'
 import { AgendaList } from '../components/dashboard/AgendaList.tsx'
 import { PendingLogic } from '../components/dashboard/PendingLogic.tsx'
@@ -9,6 +11,8 @@ export function Dashboard() {
   return (
     <div>
       <HeroHeader />
+      <MomentumTracker />
+      <SmartSummary />
       <StatsGrid />
 
       {/* Two-column: Agenda + Pending Logic */}

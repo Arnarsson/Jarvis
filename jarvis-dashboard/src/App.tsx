@@ -7,6 +7,8 @@ import { CommandPage } from './pages/CommandPage.tsx'
 import { TasksPage } from './pages/TasksPage.tsx'
 import { SystemPage } from './pages/SystemPage.tsx'
 import { MemoryPage } from './pages/MemoryPage.tsx'
+import { Daily3Page } from './pages/Daily3Page.tsx'
+import { FocusPage } from './pages/FocusPage.tsx'
 
 export default function App() {
   return (
@@ -19,6 +21,8 @@ export default function App() {
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/command" element={<CommandPage />} />
         <Route path="/system" element={<SystemPage />} />
+        <Route path="/daily3" element={<Daily3Page />} />
+        <Route path="/focus" element={<FocusPage />} />
       </Routes>
     </Shell>
   )
