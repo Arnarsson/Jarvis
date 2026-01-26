@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiGet, apiPost } from '../api/client.ts'
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton.tsx'
+import { DecisionBatcher } from '../components/tasks/DecisionBatcher.tsx'
 
 // --- Types ---
 
@@ -614,6 +615,8 @@ export function TasksPage() {
 
   return (
     <div>
+      <DecisionBatcher />
+
       <h3 className="section-title">TASKS</h3>
 
       {/* Tab navigation */}

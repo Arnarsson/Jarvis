@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { apiGet, apiPost } from '../api/client.ts'
+import { ContextSnapshot } from '../components/memory/ContextSnapshot.tsx'
 
 /* ───────────────────────── Types ───────────────────────── */
 
@@ -760,6 +761,7 @@ export function MemoryPage() {
   return (
     <div>
       <MemoryStatsHeader />
+      <ContextSnapshot />
       <TimelineSection />
       <SearchSection />
       <SourcesSection />
