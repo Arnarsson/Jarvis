@@ -109,7 +109,7 @@ export function CommandPage() {
 
   const quickMutation = useMutation({
     mutationFn: (query: string) =>
-      apiPost<QuickCatchUpResponse>('/api/catchup/quick', { query }),
+      apiPost<QuickCatchUpResponse>(`/api/catchup/quick?query=${encodeURIComponent(query)}`),
     onSuccess: (data) => {
       const sourceSummary = Object.entries(data.sources || {})
         .map(([s, n]) => `${s}: ${n}`)

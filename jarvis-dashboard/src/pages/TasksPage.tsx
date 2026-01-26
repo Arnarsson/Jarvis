@@ -454,7 +454,7 @@ function PatternsTab() {
 
   const promoteMutation = useMutation({
     mutationFn: ({ id, tier }: { id: string; tier: string }) =>
-      apiPost(`/api/workflow/patterns/${id}/promote`, { tier }),
+      apiPost(`/api/workflow/patterns/${id}/promote?tier=${encodeURIComponent(tier)}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflow', 'patterns'] })
     },
@@ -462,9 +462,7 @@ function PatternsTab() {
 
   const suspendMutation = useMutation({
     mutationFn: (id: string) =>
-      apiPost(`/api/workflow/patterns/${id}/suspend`, {
-        reason: 'Suspended from dashboard',
-      }),
+      apiPost(`/api/workflow/patterns/${id}/suspend?reason=${encodeURIComponent('Suspended from dashboard')}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflow', 'patterns'] })
     },
