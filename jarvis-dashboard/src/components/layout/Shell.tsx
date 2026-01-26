@@ -1,5 +1,7 @@
 import { useLocation, Link } from 'react-router-dom'
 import { useAppStore } from '../../stores/app.ts'
+import { useEffect } from 'react'
+import { fetchHealth } from '../../api/health.ts'
 
 const navItems = [
   { path: '/', label: 'OVERVIEW' },
@@ -17,9 +19,9 @@ const mobileNavItems = [
   { path: '/command', label: 'Command', icon: 'terminal' },
 ]
 
-function NavIcon({ icon, className = '' }: { icon: string; className?: string }) {
+function NavIcon({ icon }: { icon: string }) {
   const size = 18
-  const props = { width: size, height: size, fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, className }
+  const props = { width: size, height: size, fill: 'none', stroke: 'currentColor', strokeWidth: 1.5 }
 
   switch (icon) {
     case 'grid':
@@ -57,9 +59,94 @@ function NavIcon({ icon, className = '' }: { icon: string; className?: string })
   }
 }
 
+function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
+  const location = useLocation()
+  const { connectionStatus, theme, toggleTheme } = useAppStore()
+
+  return (
+    <>
+      {/* Logo / Branding */}
+      <div className="px-6 pt-8 pb-8">
+        <h1 className="font-mono text-sm font-bold text-text-primary tracking-widest">
+          E.A./SYSTEM
+        </h1>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 px-6 space-y-1">
+        {navItems.map((item) => {
+          const isActive = location.pathname === item.path
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              onClick={onNavClick}
+              className={`block py-2 text-[13px] font-mono tracking-wider transition-colors ${
+                isActive
+                  ? 'text-text-primary'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              {isActive && <span className="mr-2">&rarr;</span>}
+              {item.label}
+            </Link>
+          )
+        })}
+      </nav>
+
+      {/* Status footer */}
+      <div className="px-6 pb-6 space-y-3">
+        <div className="border-t border-border pt-4" />
+
+        {/* Connection status */}
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-2">
+            <span
+              className={`inline-block h-2 w-2 rounded-full ${
+                connectionStatus === 'online'
+                  ? 'bg-success animate-pulse-dot'
+                  : 'bg-text-muted'
+              }`}
+            />
+            <span className="font-mono text-[11px] tracking-wider text-text-secondary uppercase">
+              {connectionStatus === 'online' ? 'ONLINE' : 'OFFLINE'}
+            </span>
+          </div>
+          <p className="text-[12px] text-text-secondary pl-4">Sven Arnarsson</p>
+        </div>
+
+        {/* Theme toggle */}
+        <button
+          onClick={toggleTheme}
+          className="w-full mt-2 flex items-center justify-center gap-2 rounded border border-border py-2 text-[11px] font-mono tracking-wider text-text-secondary hover:text-text-primary hover:border-border-light transition-colors"
+        >
+          <span className="text-xs">&loz;</span>
+          {theme === 'dark' ? 'LIGHT' : 'DARK'}
+        </button>
+      </div>
+    </>
+  )
+}
+
 export function Shell({ children }: { children: React.ReactNode }) {
   const location = useLocation()
-  const { connectionStatus, theme, toggleTheme, sidebarOpen, setSidebarOpen } = useAppStore()
+  const { sidebarOpen, setSidebarOpen, setConnectionStatus } = useAppStore()
+
+  // Ping server health to set connection status
+  useEffect(() => {
+    let mounted = true
+    const check = async () => {
+      try {
+        await fetchHealth()
+        if (mounted) setConnectionStatus('online')
+      } catch {
+        if (mounted) setConnectionStatus('offline')
+      }
+    }
+    check()
+    const interval = setInterval(check, 30_000)
+    return () => { mounted = false; clearInterval(interval) }
+  }, [setConnectionStatus])
 
   return (
     <div className="flex h-screen bg-bg">
@@ -71,71 +158,18 @@ export function Shell({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      {/* Sidebar */}
+      {/* Desktop sidebar — always visible on lg+ */}
+      <aside className="hidden lg:flex w-[192px] shrink-0 flex-col bg-surface border-r border-border">
+        <SidebarContent />
+      </aside>
+
+      {/* Mobile sidebar — slide-in drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[192px] flex-col bg-surface border-r border-border transition-transform duration-200 lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[192px] flex-col bg-surface border-r border-border transition-transform duration-200 lg:hidden ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        {/* Logo / Branding */}
-        <div className="px-6 pt-8 pb-8">
-          <h1 className="font-mono text-sm font-bold text-text-primary tracking-widest">
-            E.A./SYSTEM
-          </h1>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 px-6 space-y-1">
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.path
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setSidebarOpen(false)}
-                className={`block py-2 text-[13px] font-mono tracking-wider transition-colors ${
-                  isActive
-                    ? 'text-text-primary'
-                    : 'text-text-secondary hover:text-text-primary'
-                }`}
-              >
-                {isActive && <span className="mr-2">&rarr;</span>}
-                {item.label}
-              </Link>
-            )
-          })}
-        </nav>
-
-        {/* Status footer */}
-        <div className="px-6 pb-6 space-y-3">
-          <div className="border-t border-border pt-4" />
-
-          {/* Connection status */}
-          <div className="space-y-0.5">
-            <div className="flex items-center gap-2">
-              <span
-                className={`inline-block h-2 w-2 rounded-full ${
-                  connectionStatus === 'online'
-                    ? 'bg-success animate-pulse-dot'
-                    : 'bg-text-muted'
-                }`}
-              />
-              <span className="font-mono text-[11px] tracking-wider text-text-secondary uppercase">
-                {connectionStatus === 'online' ? 'ONLINE' : 'OFFLINE'}
-              </span>
-            </div>
-            <p className="text-[12px] text-text-secondary pl-4">Sven Arnarsson</p>
-          </div>
-
-          {/* Theme toggle */}
-          <button
-            onClick={toggleTheme}
-            className="w-full mt-2 flex items-center justify-center gap-2 rounded border border-border py-2 text-[11px] font-mono tracking-wider text-text-secondary hover:text-text-primary hover:border-border-light transition-colors"
-          >
-            <span className="text-xs">&loz;</span>
-            {theme === 'dark' ? 'LIGHT' : 'DARK'}
-          </button>
-        </div>
+        <SidebarContent onNavClick={() => setSidebarOpen(false)} />
       </aside>
 
       {/* Main content */}
@@ -161,7 +195,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
 
-        {/* Mobile bottom nav */}
+        {/* Mobile bottom nav — hidden on desktop */}
         <nav className="fixed bottom-0 left-0 right-0 z-30 flex h-16 items-center justify-around border-t border-border bg-surface lg:hidden">
           {mobileNavItems.map((item) => {
             const isActive = location.pathname === item.path

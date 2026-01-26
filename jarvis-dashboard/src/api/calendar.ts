@@ -3,12 +3,20 @@ import { apiGet } from './client.ts'
 export interface CalendarEvent {
   id: string
   summary: string
-  start_time: string
-  end_time: string
-  location?: string
-  meet_link?: string
+  start: string
+  end: string
+  location?: string | null
+  description?: string | null
+  meeting_link?: string | null
+  attendees: string[]
+}
+
+interface CalendarResponse {
+  events: CalendarEvent[]
+  count: number
 }
 
 export async function fetchUpcomingMeetings(): Promise<CalendarEvent[]> {
-  return apiGet<CalendarEvent[]>('/api/calendar/events/upcoming')
+  const data = await apiGet<CalendarResponse>('/api/calendar/events/upcoming')
+  return data.events
 }

@@ -20,6 +20,16 @@ interface SearchHealth {
   document_count?: number
 }
 
+function isToday(isoString: string): boolean {
+  const eventDate = new Date(isoString)
+  const now = new Date()
+  return (
+    eventDate.getFullYear() === now.getFullYear() &&
+    eventDate.getMonth() === now.getMonth() &&
+    eventDate.getDate() === now.getDate()
+  )
+}
+
 async function fetchEmailCount(): Promise<number> {
   try {
     const auth = await fetchEmailAuthStatus()
@@ -64,11 +74,12 @@ export function useStats() {
 
   const isLoading = meetingsQuery.isLoading || workflowQuery.isLoading
 
+  const todaysMeetings = meetingsQuery.data?.filter((e) => isToday(e.start)) ?? []
   const docCount = searchQuery.data?.document_count ?? 0
   const velocity = docCount > 0 ? Math.min(99, Math.round((docCount / 50) * 100)) : 0
 
   const stats: DashboardStats = {
-    meetingsToday: meetingsQuery.data?.length ?? 0,
+    meetingsToday: todaysMeetings.length,
     inboundCount: emailQuery.data ?? 0,
     pendingActions: workflowQuery.data?.length ?? 0,
     velocity,

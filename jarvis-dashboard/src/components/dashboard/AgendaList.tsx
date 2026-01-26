@@ -1,5 +1,6 @@
 import { useAgenda } from '../../hooks/useAgenda.ts'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton.tsx'
+import type { CalendarEvent } from '../../api/calendar.ts'
 
 function formatTime(isoString: string): string {
   const date = new Date(isoString)
@@ -10,8 +11,12 @@ function formatTime(isoString: string): string {
   })
 }
 
-function getAttendeeLabel(event: { location?: string; summary: string }): string {
-  // Use location as attendee info, or extract from summary
+function getAttendeeLabel(event: CalendarEvent): string {
+  if (event.attendees && event.attendees.length > 0) {
+    const first = event.attendees[0].split('@')[0].toUpperCase()
+    const extra = event.attendees.length > 1 ? ` +${event.attendees.length - 1}` : ''
+    return `${first}${extra}`
+  }
   return event.location || ''
 }
 
@@ -22,7 +27,9 @@ function getPriority(summary: string): 'priority' | 'routine' {
     lower.includes('investor') ||
     lower.includes('strategy') ||
     lower.includes('series') ||
-    lower.includes('review')
+    lower.includes('review') ||
+    lower.includes('interview') ||
+    lower.includes('1:1')
   ) {
     return 'priority'
   }
@@ -65,9 +72,9 @@ export function AgendaList() {
                     {event.summary}
                   </p>
                   <p className="text-[12px] text-text-secondary mt-1 font-mono tracking-wide">
-                    {formatTime(event.start_time)} &mdash; {formatTime(event.end_time)}
+                    {formatTime(event.start)} &mdash; {formatTime(event.end)}
                     {attendee && (
-                      <span> / {attendee.toUpperCase()}</span>
+                      <span> / {attendee}</span>
                     )}
                   </p>
                 </div>

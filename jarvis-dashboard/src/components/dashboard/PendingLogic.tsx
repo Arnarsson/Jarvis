@@ -23,10 +23,10 @@ export function PendingLogic() {
             >
               <div className="flex-1 min-w-0">
                 <p className="text-[15px] text-text-primary font-medium">
-                  {item.title}
+                  {item.name}
                 </p>
                 <p className="text-[12px] text-text-secondary mt-1">
-                  {item.type} / {item.priority}
+                  {item.description || `${item.pattern_type} / Confidence: ${Math.round(item.confidence * 100)}%`}
                 </p>
               </div>
               <button className="ml-4 shrink-0 font-mono text-[12px] tracking-wider text-accent hover:text-accent-hover transition-colors font-bold">

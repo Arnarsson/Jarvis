@@ -7,9 +7,18 @@ export interface HealthResponse {
 
 export interface WorkflowSuggestion {
   id: string
-  type: string
-  title: string
-  priority: string
+  name: string
+  description: string
+  pattern_type: string
+  trigger_description: string
+  action_description: string
+  confidence: number
+  similar_captures: unknown[]
+}
+
+interface WorkflowSuggestionsResponse {
+  suggestions: WorkflowSuggestion[]
+  total: number
 }
 
 export interface EmailAuthStatus {
@@ -27,7 +36,8 @@ export async function fetchStats(): Promise<string> {
 
 export async function fetchWorkflowSuggestions(): Promise<WorkflowSuggestion[]> {
   try {
-    return await apiGet<WorkflowSuggestion[]>('/api/workflow/suggestions')
+    const data = await apiGet<WorkflowSuggestionsResponse>('/api/workflow/suggestions')
+    return data.suggestions
   } catch {
     return []
   }
