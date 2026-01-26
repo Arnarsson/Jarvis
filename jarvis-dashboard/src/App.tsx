@@ -6,18 +6,18 @@ import { CommsPage } from './pages/CommsPage.tsx'
 import { CommandPage } from './pages/CommandPage.tsx'
 import { TasksPage } from './pages/TasksPage.tsx'
 import { SystemPage } from './pages/SystemPage.tsx'
-import { CatchUpPage } from './pages/CatchUpPage.tsx'
+import { MemoryPage } from './pages/MemoryPage.tsx'
 
 export default function App() {
   return (
     <Shell>
       <Routes>
         <Route path="/" element={<Dashboard />} />
+        <Route path="/memory" element={<MemoryPage />} />
         <Route path="/schedule" element={<SchedulePage />} />
         <Route path="/comms" element={<CommsPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/command" element={<CommandPage />} />
-        <Route path="/catchup" element={<CatchUpPage />} />
         <Route path="/system" element={<SystemPage />} />
       </Routes>
     </Shell>

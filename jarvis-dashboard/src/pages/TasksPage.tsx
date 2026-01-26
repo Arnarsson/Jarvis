@@ -634,7 +634,9 @@ export function TasksPage() {
       </div>
 
       {/* Tab content */}
-      {activeTab === 'pending' ? <PendingTab /> : <PatternsTab />}
+      {activeTab === 'pending' && <PendingTab />}
+      {activeTab === 'executions' && <ExecutionsTab />}
+      {activeTab === 'patterns' && <PatternsTab />}
     </div>
   )
 }
