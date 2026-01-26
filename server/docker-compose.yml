@@ -22,6 +22,7 @@ services:
     volumes:
       - captures:/data/captures
       - ./data/calendar:/data/calendar
+      - ./data/email:/data/email
     depends_on:
       postgres:
         condition: service_healthy

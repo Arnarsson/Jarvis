@@ -10,9 +10,14 @@ interface EmailAuthStatus {
 interface EmailMessage {
   id: string
   subject: string
-  from_email: string
-  is_read: boolean
-  labels: string[]
+  from_address: string
+  is_unread: boolean
+  is_important: boolean
+}
+
+interface EmailListResponse {
+  messages: EmailMessage[]
+  count: number
 }
 
 async function fetchEmailAuth(): Promise<EmailAuthStatus> {
@@ -25,7 +30,8 @@ async function fetchEmailAuth(): Promise<EmailAuthStatus> {
 
 async function fetchEmails(): Promise<EmailMessage[]> {
   try {
-    return await apiGet<EmailMessage[]>('/api/email/messages')
+    const data = await apiGet<EmailListResponse>('/api/email/messages')
+    return data.messages
   } catch {
     return []
   }
@@ -43,8 +49,8 @@ export function Communications() {
     enabled: auth?.authenticated === true,
   })
 
-  const unread = messages?.filter((m) => !m.is_read).length ?? 0
-  const priority = messages?.filter((m) => m.labels?.includes('IMPORTANT')).length ?? 0
+  const unread = messages?.filter((m) => m.is_unread).length ?? 0
+  const priority = messages?.filter((m) => m.is_important).length ?? 0
 
   return (
     <div>

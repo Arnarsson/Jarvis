@@ -12,7 +12,12 @@ export interface DashboardStats {
 
 interface EmailMessage {
   id: string
-  is_read: boolean
+  is_unread: boolean
+}
+
+interface EmailListResponse {
+  messages: EmailMessage[]
+  count: number
 }
 
 interface SearchHealth {
@@ -34,8 +39,8 @@ async function fetchEmailCount(): Promise<number> {
   try {
     const auth = await fetchEmailAuthStatus()
     if (!auth.authenticated) return 0
-    const messages = await apiGet<EmailMessage[]>('/api/email/messages')
-    return messages.filter((m) => !m.is_read).length
+    const data = await apiGet<EmailListResponse>('/api/email/messages')
+    return data.messages.filter((m) => m.is_unread).length
   } catch {
     return 0
   }
