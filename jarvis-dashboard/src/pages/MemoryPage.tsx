@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { apiGet, apiPost } from '../api/client.ts'
+import { apiPost } from '../api/client.ts'
 
 /* ───────────────────────── Types ───────────────────────── */
 
@@ -8,6 +8,8 @@ interface SearchResult {
   text_preview: string
   timestamp: string
   score: number
+  source?: string
+  filepath?: string | null
 }
 
 interface SearchResponse {
@@ -16,41 +18,235 @@ interface SearchResponse {
   query?: string
 }
 
-interface ImportSource {
-  id: string
-  name: string
-  format: string
-  instructions: string
+interface ParsedConversation {
+  title: string
+  userMessage: string
+  assistantMessage: string
 }
 
 /* ───────────────────────── Helpers ───────────────────────── */
 
-function formatTime(ts: string): string {
-  try {
-    const d = new Date(ts)
-    return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-  } catch { return '' }
+function parseTextPreview(text: string): ParsedConversation {
+  let title = ''
+  let userMessage = ''
+  let assistantMessage = ''
+
+  // Extract title
+  const titleMatch = text.match(/^Title:\s*(.+?)(?:\n|$)/)
+  if (titleMatch) {
+    title = titleMatch[1].trim()
+  }
+
+  // Extract USER message
+  const userMatch = text.match(/USER:\s*([\s\S]*?)(?=\nASSISTANT:|\n\n[A-Z]|$)/)
+  if (userMatch) {
+    userMessage = userMatch[1].trim()
+    // Clean up: limit to first meaningful chunk
+    if (userMessage.length > 300) {
+      userMessage = userMessage.slice(0, 300).replace(/\s+\S*$/, '') + '…'
+    }
+  }
+
+  // Extract ASSISTANT message
+  const assistantMatch = text.match(/ASSISTANT:\s*([\s\S]*)$/)
+  if (assistantMatch) {
+    assistantMessage = assistantMatch[1].trim()
+    if (assistantMessage.length > 400) {
+      assistantMessage = assistantMessage.slice(0, 400).replace(/\s+\S*$/, '') + '…'
+    }
+  }
+
+  // Fallback: if no structured data found, use the whole preview
+  if (!title && !userMessage && !assistantMessage) {
+    const cleaned = text.trim()
+    if (cleaned.length > 400) {
+      userMessage = cleaned.slice(0, 400) + '…'
+    } else {
+      userMessage = cleaned
+    }
+    title = 'Conversation'
+  }
+
+  return { title: title || 'Untitled conversation', userMessage, assistantMessage }
 }
 
-function formatDate(ts: string): string {
+function timeAgo(ts: string): string {
   try {
-    const d = new Date(ts)
-    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-  } catch { return '' }
-}
+    const now = Date.now()
+    const then = new Date(ts).getTime()
+    const diffMs = now - then
+    const diffMin = Math.floor(diffMs / 60000)
+    const diffHr = Math.floor(diffMs / 3600000)
+    const diffDay = Math.floor(diffMs / 86400000)
+    const diffWeek = Math.floor(diffDay / 7)
+    const diffMonth = Math.floor(diffDay / 30)
 
-function formatColor(format: string): string {
-  switch (format.toLowerCase()) {
-    case 'json': return 'bg-green-500/20 text-green-400 border-green-500/30'
-    case 'markdown':
-    case 'md': return 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-    case 'html': return 'bg-orange-500/20 text-orange-400 border-orange-500/30'
-    case 'csv': return 'bg-purple-500/20 text-purple-400 border-purple-500/30'
-    default: return 'bg-neutral-500/20 text-neutral-400 border-neutral-500/30'
+    if (diffMin < 1) return 'just now'
+    if (diffMin < 60) return `${diffMin}m ago`
+    if (diffHr < 24) return `${diffHr}h ago`
+    if (diffDay === 1) return 'yesterday'
+    if (diffDay < 7) return `${diffDay}d ago`
+    if (diffWeek < 5) return `${diffWeek}w ago`
+    if (diffMonth < 12) return `${diffMonth}mo ago`
+
+    const d = new Date(ts)
+    return d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
+  } catch {
+    return ''
   }
 }
 
-/* ───────────────────── Section Components ───────────────────── */
+function formatFullDate(ts: string): string {
+  try {
+    const d = new Date(ts)
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  } catch {
+    return ''
+  }
+}
+
+function sourceConfig(source?: string): { label: string; color: string; accent: string; icon: string; bg: string } {
+  switch (source?.toLowerCase()) {
+    case 'chatgpt':
+      return {
+        label: 'ChatGPT',
+        color: 'text-emerald-400',
+        accent: 'border-emerald-500/40',
+        bg: 'bg-emerald-500/8',
+        icon: '◉',
+      }
+    case 'claude':
+      return {
+        label: 'Claude',
+        color: 'text-orange-400',
+        accent: 'border-orange-500/40',
+        bg: 'bg-orange-500/8',
+        icon: '◈',
+      }
+    default:
+      return {
+        label: 'Unknown',
+        color: 'text-neutral-400',
+        accent: 'border-neutral-500/30',
+        bg: 'bg-neutral-500/8',
+        icon: '○',
+      }
+  }
+}
+
+/* ───────────────────── Suggested Searches ───────────────────── */
+
+const SUGGESTED_SEARCHES = [
+  { label: '🧠 Recent decisions', query: 'decisions and conclusions reached' },
+  { label: '🏗️ Project discussions', query: 'project architecture and development' },
+  { label: '👥 People mentioned', query: 'people names mentioned in conversations' },
+  { label: '🔧 Technical problems', query: 'bugs errors technical issues debugging' },
+  { label: '📋 Action items', query: 'tasks to do action items next steps' },
+  { label: '💡 Ideas & brainstorms', query: 'ideas brainstorming creative concepts' },
+]
+
+/* ───────────────────── Relevance Bar ───────────────────── */
+
+function RelevanceBar({ score }: { score: number }) {
+  const pct = Math.round(score * 100)
+  const width = Math.max(pct, 8)
+  const color = pct >= 70 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-neutral-500'
+
+  return (
+    <div className="flex items-center gap-2 shrink-0">
+      <div className="w-16 h-1.5 rounded-full bg-neutral-800 overflow-hidden">
+        <div className={`h-full rounded-full ${color} transition-all duration-300`} style={{ width: `${width}%` }} />
+      </div>
+      <span className="text-[10px] font-mono text-text-muted tabular-nums">{pct}%</span>
+    </div>
+  )
+}
+
+/* ───────────────────── Conversation Card ───────────────────── */
+
+function ConversationCard({ result }: { result: SearchResult }) {
+  const parsed = parseTextPreview(result.text_preview)
+  const src = sourceConfig(result.source)
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <div
+      className={`border rounded-lg overflow-hidden transition-all duration-200 hover:border-border-light ${src.accent} ${src.bg}`}
+    >
+      {/* Header */}
+      <div className="px-4 pt-3.5 pb-2 flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={`text-sm ${src.color}`}>{src.icon}</span>
+          <h3 className="text-sm font-mono font-semibold text-text-primary truncate">
+            {parsed.title}
+          </h3>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <RelevanceBar score={result.score} />
+          <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${src.color} bg-black/20`}>
+            {src.label}
+          </span>
+        </div>
+      </div>
+
+      {/* Conversation bubbles */}
+      <div className="px-4 pb-3 space-y-2">
+        {parsed.userMessage && (
+          <div className="flex justify-end">
+            <div className="max-w-[85%] rounded-xl rounded-tr-sm bg-blue-600/15 border border-blue-500/20 px-3.5 py-2.5">
+              <p className="text-[10px] font-mono text-blue-400/70 mb-1 tracking-wider">YOU</p>
+              <p className="text-xs text-text-secondary leading-relaxed">
+                {expanded ? parsed.userMessage : (
+                  parsed.userMessage.length > 150
+                    ? parsed.userMessage.slice(0, 150).replace(/\s+\S*$/, '') + '…'
+                    : parsed.userMessage
+                )}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {parsed.assistantMessage && (
+          <div className="flex justify-start">
+            <div className={`max-w-[85%] rounded-xl rounded-tl-sm border px-3.5 py-2.5 ${
+              result.source === 'chatgpt'
+                ? 'bg-emerald-600/10 border-emerald-500/15'
+                : 'bg-orange-600/10 border-orange-500/15'
+            }`}>
+              <p className={`text-[10px] font-mono mb-1 tracking-wider ${src.color} opacity-70`}>
+                {src.label.toUpperCase()}
+              </p>
+              <p className="text-xs text-text-secondary leading-relaxed">
+                {expanded ? parsed.assistantMessage : (
+                  parsed.assistantMessage.length > 200
+                    ? parsed.assistantMessage.slice(0, 200).replace(/\s+\S*$/, '') + '…'
+                    : parsed.assistantMessage
+                )}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="px-4 pb-3 flex items-center justify-between">
+        <span className="text-[10px] font-mono text-text-muted" title={formatFullDate(result.timestamp)}>
+          {timeAgo(result.timestamp)}
+        </span>
+        {(parsed.userMessage.length > 150 || parsed.assistantMessage.length > 200) && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-[10px] font-mono text-text-muted hover:text-text-primary transition-colors"
+          >
+            {expanded ? '↑ collapse' : '↓ expand'}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ───────────────────── Search Section ───────────────────── */
 
 function SearchSection() {
   const [query, setQuery] = useState('')
@@ -74,7 +270,7 @@ function SearchSection() {
       console.error('Search failed:', e)
       setResults([])
       setTotal(null)
-      setError('Search unavailable')
+      setError('Search unavailable — is the memory backend running?')
     } finally {
       setLoading(false)
     }
@@ -92,10 +288,15 @@ function SearchSection() {
     doSearch(query)
   }
 
+  const handleSuggestion = (q: string) => {
+    setQuery(q)
+    doSearch(q)
+  }
+
   return (
     <section className="mb-10">
       {/* Search bar */}
-      <form onSubmit={handleSubmit} className="relative mb-6">
+      <form onSubmit={handleSubmit} className="relative mb-4">
         <div className="flex items-center border border-border rounded-lg bg-surface overflow-hidden focus-within:border-accent transition-colors">
           <span className="pl-4 text-text-muted">
             <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
@@ -107,7 +308,7 @@ function SearchSection() {
             type="text"
             value={query}
             onChange={(e) => handleInput(e.target.value)}
-            placeholder="Search your memory — conversations, captures, everything…"
+            placeholder="Search your memory — conversations, decisions, people, anything…"
             className="flex-1 bg-transparent px-4 py-3.5 text-sm text-text-primary placeholder:text-text-muted font-mono outline-none"
             autoFocus
           />
@@ -131,45 +332,83 @@ function SearchSection() {
         </div>
       </form>
 
-      {/* Results */}
-      {loading && (
-        <div className="flex items-center gap-2 text-text-muted text-xs font-mono">
-          <span className="inline-block h-2 w-2 rounded-full bg-accent animate-pulse" />
-          Searching memory…
+      {/* Suggested searches */}
+      {!searched && (
+        <div className="flex flex-wrap gap-2 mb-6">
+          {SUGGESTED_SEARCHES.map((s) => (
+            <button
+              key={s.query}
+              onClick={() => handleSuggestion(s.query)}
+              className="px-3 py-1.5 rounded-full text-[11px] font-mono text-text-muted bg-surface border border-border hover:border-accent/50 hover:text-text-primary transition-all duration-200"
+            >
+              {s.label}
+            </button>
+          ))}
         </div>
       )}
 
+      {/* Empty state */}
+      {!searched && !loading && (
+        <div className="border border-border/30 rounded-lg p-10 text-center">
+          <div className="text-3xl mb-4">🧠</div>
+          <p className="text-sm font-mono text-text-secondary mb-2">
+            Your unified memory across <span className="text-text-primary font-semibold">5,110+</span> ChatGPT &amp; Claude conversations.
+          </p>
+          <p className="text-xs font-mono text-text-muted mb-5">
+            Search for anything — decisions, people, technical discussions, ideas…
+          </p>
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-[10px] font-mono text-text-muted/60">
+            <span>try: "what did I decide about…"</span>
+            <span>·</span>
+            <span>"conversations about React"</span>
+            <span>·</span>
+            <span>"meeting with…"</span>
+          </div>
+        </div>
+      )}
+
+      {/* Loading */}
+      {loading && (
+        <div className="flex items-center gap-2 text-text-muted text-xs font-mono py-4">
+          <span className="inline-block h-2 w-2 rounded-full bg-accent animate-pulse" />
+          Searching across your memories…
+        </div>
+      )}
+
+      {/* Error */}
       {error && !loading && (
-        <p className="text-red-400/70 text-xs font-mono">{error}</p>
+        <div className="border border-red-500/20 rounded-lg p-4 bg-red-500/5">
+          <p className="text-red-400/70 text-xs font-mono">{error}</p>
+        </div>
       )}
 
+      {/* No results */}
       {!loading && !error && searched && results.length === 0 && (
-        <p className="text-text-muted text-xs font-mono">No memories found for "{query}"</p>
+        <div className="border border-border/30 rounded-lg p-8 text-center">
+          <p className="text-text-muted text-sm font-mono mb-1">No memories found for "{query}"</p>
+          <p className="text-text-muted/60 text-[11px] font-mono">Try different keywords or a broader search</p>
+        </div>
       )}
 
+      {/* Results */}
       {results.length > 0 && (
         <div className="space-y-3">
-          <p className="text-text-muted text-[11px] font-mono tracking-wider uppercase">
-            {results.length} result{results.length !== 1 ? 's' : ''}
-            {total != null && total > results.length ? ` of ${total.toLocaleString()}` : ''}
-          </p>
-          {results.map((r) => (
-            <div
-              key={r.id}
-              className="border border-border rounded-lg p-4 bg-surface hover:border-border-light transition-colors group"
-            >
-              <div className="flex items-start justify-between gap-4 mb-2">
-                <span className="text-[11px] text-text-muted font-mono">
-                  {formatDate(r.timestamp)} · {formatTime(r.timestamp)}
-                </span>
-                <span className="text-[10px] font-mono text-text-muted shrink-0">
-                  {(r.score * 100).toFixed(0)}% match
-                </span>
-              </div>
-              <p className="text-sm text-text-secondary leading-relaxed line-clamp-3">
-                {r.text_preview}
-              </p>
+          <div className="flex items-center justify-between">
+            <p className="text-text-muted text-[11px] font-mono tracking-wider uppercase">
+              {results.length} result{results.length !== 1 ? 's' : ''}
+              {total != null && total > results.length ? ` of ${total.toLocaleString()}` : ''}
+            </p>
+            <div className="flex items-center gap-3 text-[10px] font-mono text-text-muted">
+              <span className="flex items-center gap-1">
+                <span className="text-emerald-400">◉</span> ChatGPT
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="text-orange-400">◈</span> Claude
+              </span>
             </div>
+          </div>
+          {results.map((r) => (
+            <ConversationCard key={r.id} result={r} />
           ))}
         </div>
       )}
@@ -177,86 +416,97 @@ function SearchSection() {
   )
 }
 
+/* ───────────────────── Sources Section (ChatGPT + Claude only) ───────────────────── */
+
 function SourcesSection() {
-  const [sources, setSources] = useState<ImportSource[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const sources = [
+    {
+      name: 'ChatGPT',
+      icon: '◉',
+      color: 'text-emerald-400',
+      borderColor: 'border-emerald-500/30',
+      bgColor: 'bg-emerald-500/8',
+      description: 'Conversations exported from OpenAI ChatGPT',
+      format: 'JSON',
+    },
+    {
+      name: 'Claude',
+      icon: '◈',
+      color: 'text-orange-400',
+      borderColor: 'border-orange-500/30',
+      bgColor: 'bg-orange-500/8',
+      description: 'Conversations from Anthropic Claude',
+      format: 'JSON',
+    },
+  ]
+
+  return (
+    <section className="mb-10">
+      <h2 className="text-xs font-mono tracking-widest text-text-muted uppercase mb-4">CONNECTED SOURCES</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {sources.map((src) => (
+          <div
+            key={src.name}
+            className={`border rounded-lg p-5 transition-colors ${src.borderColor} ${src.bgColor}`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className={`text-lg ${src.color}`}>{src.icon}</span>
+                <span className="text-sm font-mono font-bold text-text-primary">{src.name}</span>
+              </div>
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-mono text-emerald-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                indexed
+              </span>
+            </div>
+            <p className="text-[11px] font-mono text-text-muted leading-relaxed">{src.description}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+/* ───────────────────── Memory Stats Header ───────────────────── */
+
+function MemoryStatsHeader() {
+  const [pointsCount, setPointsCount] = useState<number | null>(null)
 
   useEffect(() => {
     let mounted = true
     ;(async () => {
       try {
-        const data = await apiGet<{ sources: ImportSource[] }>('/api/import/sources')
-        const list = data?.sources ?? []
-        if (mounted) setSources(list)
-      } catch (e) {
-        console.error('Failed to load import sources:', e)
-        if (mounted) setError('Could not load import sources')
-      } finally {
-        if (mounted) setLoading(false)
+        const resp = await fetch('/api/health/')
+        if (resp.ok) {
+          const data = await resp.json()
+          if (data.qdrant_vectors && mounted) {
+            setPointsCount(data.qdrant_vectors)
+          }
+        }
+      } catch {
+        // Silently fail — we have a fallback
       }
     })()
     return () => { mounted = false }
   }, [])
 
-  if (loading) {
-    return (
-      <section className="mb-10">
-        <h2 className="text-xs font-mono tracking-widest text-text-muted uppercase mb-4">IMPORT SOURCES</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="border border-border rounded-lg p-5 bg-surface animate-pulse h-28" />
-          ))}
-        </div>
-      </section>
-    )
-  }
-
-  if (error) {
-    return (
-      <section className="mb-10">
-        <h2 className="text-xs font-mono tracking-widest text-text-muted uppercase mb-4">IMPORT SOURCES</h2>
-        <div className="border border-border/50 rounded-lg p-6 text-center">
-          <p className="text-text-muted text-xs font-mono">{error}</p>
-        </div>
-      </section>
-    )
-  }
-
-  if (sources.length === 0) return null
+  const count = pointsCount ? pointsCount.toLocaleString() : '5,110+'
 
   return (
-    <section className="mb-10">
-      <div className="flex items-baseline justify-between mb-4">
-        <h2 className="text-xs font-mono tracking-widest text-text-muted uppercase">IMPORT SOURCES</h2>
-        <span className="text-xs font-mono text-text-muted">
-          {sources.length} source{sources.length !== 1 ? 's' : ''} configured
-        </span>
+    <div className="mb-8">
+      <div className="flex items-center gap-3 mb-2">
+        <h1 className="text-lg font-mono font-bold text-text-primary tracking-wider">
+          MEMORY
+        </h1>
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent/10 border border-accent/20">
+          <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+          <span className="text-[10px] font-mono text-accent tracking-wider">{count} memories</span>
+        </div>
       </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {sources.map((src) => (
-          <div
-            key={src.id}
-            className="border border-border rounded-lg p-5 bg-surface hover:border-border-light transition-colors"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-mono font-bold text-text-primary">
-                {src.name}
-              </span>
-              <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono tracking-wider border ${formatColor(src.format)}`}>
-                {src.format.toUpperCase()}
-              </span>
-            </div>
-            {src.instructions && (
-              <p className="text-[11px] font-mono text-text-muted leading-relaxed line-clamp-2">
-                {src.instructions}
-              </p>
-            )}
-          </div>
-        ))}
-      </div>
-    </section>
+      <p className="text-xs font-mono text-text-muted tracking-wide">
+        Semantic search across all your ChatGPT &amp; Claude conversations — find anything you've ever discussed.
+      </p>
+    </div>
   )
 }
 
@@ -265,30 +515,9 @@ function SourcesSection() {
 export function MemoryPage() {
   return (
     <div>
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-lg font-mono font-bold text-text-primary tracking-wider mb-1">
-          MEMORY
-        </h1>
-        <p className="text-xs font-mono text-text-muted tracking-wide">
-          Search and explore your unified digital memory — conversations, captures, everything indexed.
-        </p>
-      </div>
-
+      <MemoryStatsHeader />
       <SearchSection />
       <SourcesSection />
-
-      {/* Placeholder for future sections */}
-      <section className="mb-10">
-        <div className="border border-border/30 rounded-lg p-8 text-center">
-          <p className="text-text-muted/50 text-[11px] font-mono tracking-wider uppercase mb-1">
-            TIMELINE & CAPTURES
-          </p>
-          <p className="text-text-muted/40 text-[10px] font-mono">
-            Screen capture timeline coming soon — API integration pending
-          </p>
-        </div>
-      </section>
     </div>
   )
 }
