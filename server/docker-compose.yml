@@ -115,6 +115,19 @@ services:
       - jarvis-net
     restart: unless-stopped
 
+  jarvis-frontend:
+    build:
+      context: ../jarvis-dashboard
+      dockerfile: Dockerfile
+    container_name: jarvis-frontend
+    ports:
+      - "127.0.0.1:5173:80"
+    depends_on:
+      - jarvis-server
+    networks:
+      - jarvis-net
+    restart: unless-stopped
+
   redis:
     image: redis:7-alpine
     container_name: jarvis-redis
