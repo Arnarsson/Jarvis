@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { apiPost } from '../api/client.ts'
+import { apiGet, apiPost } from '../api/client.ts'
 
 /* ───────────────────────── Types ───────────────────────── */
 
@@ -510,12 +510,257 @@ function MemoryStatsHeader() {
   )
 }
 
+/* ───────────────────── Timeline Types ───────────────────── */
+
+interface TimelineCapture {
+  id: string
+  timestamp: string
+  filepath: string
+  width: number
+  height: number
+  monitor_index: number
+  has_ocr: boolean
+  text_preview?: string
+}
+
+interface TimelineResponse {
+  captures: TimelineCapture[]
+}
+
+interface TimelineDay {
+  date: string
+  count: number
+  first_capture: string
+  last_capture: string
+}
+
+/* ───────────────────── Timeline Helpers ───────────────────── */
+
+function captureImageUrl(filepath: string): string {
+  // filepath comes as "/data/captures/2026/01/26/{id}.jpg" — strip /data/captures prefix
+  const stripped = filepath.replace(/^\/data\/captures\//, '')
+  return `/captures/${stripped}`
+}
+
+function formatCaptureTime(ts: string): string {
+  try {
+    const d = new Date(ts)
+    return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  } catch {
+    return ''
+  }
+}
+
+function formatDayLabel(dateStr: string): string {
+  try {
+    const d = new Date(dateStr + 'T12:00:00Z')
+    const today = new Date()
+    const todayStr = today.toISOString().slice(0, 10)
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    const yesterdayStr = yesterday.toISOString().slice(0, 10)
+
+    if (dateStr === todayStr) return 'Today'
+    if (dateStr === yesterdayStr) return 'Yesterday'
+    return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+  } catch {
+    return dateStr
+  }
+}
+
+/* ───────────────────── Timeline Section ───────────────────── */
+
+function TimelineSection() {
+  const [captures, setCaptures] = useState<TimelineCapture[]>([])
+  const [days, setDays] = useState<TimelineDay[]>([])
+  const [selectedDay, setSelectedDay] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedCapture, setSelectedCapture] = useState<TimelineCapture | null>(null)
+
+  // Total count across all days
+  const totalCount = days.reduce((sum, d) => sum + d.count, 0)
+
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        const [timelineData, daysData] = await Promise.all([
+          apiGet<TimelineResponse>('/api/timeline/'),
+          apiGet<TimelineDay[]>('/api/timeline/days'),
+        ])
+        if (!mounted) return
+        setCaptures(timelineData.captures ?? [])
+        setDays(daysData ?? [])
+      } catch (e) {
+        console.error('Timeline fetch failed:', e)
+        if (mounted) setError('Timeline unavailable — is the capture agent running?')
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    })()
+    return () => { mounted = false }
+  }, [])
+
+  // Filter captures by selected day
+  const filteredCaptures = selectedDay
+    ? captures.filter((c) => c.timestamp.startsWith(selectedDay))
+    : captures
+
+  return (
+    <section className="mb-10">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xs font-mono tracking-widest text-text-muted uppercase">TIMELINE</h2>
+        {totalCount > 0 && (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-500/10 border border-violet-500/20">
+            <span className="h-1.5 w-1.5 rounded-full bg-violet-400 animate-pulse" />
+            <span className="text-[10px] font-mono text-violet-400 tracking-wider">
+              {totalCount.toLocaleString()} screenshot{totalCount !== 1 ? 's' : ''} captured
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Day navigation */}
+      {days.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          <button
+            onClick={() => setSelectedDay(null)}
+            className={`px-3 py-1.5 rounded-full text-[11px] font-mono border transition-all duration-200 ${
+              selectedDay === null
+                ? 'bg-violet-500/20 border-violet-500/40 text-violet-300'
+                : 'bg-surface border-border text-text-muted hover:border-violet-500/30 hover:text-text-primary'
+            }`}
+          >
+            All days
+          </button>
+          {days.map((day) => (
+            <button
+              key={day.date}
+              onClick={() => setSelectedDay(day.date === selectedDay ? null : day.date)}
+              className={`px-3 py-1.5 rounded-full text-[11px] font-mono border transition-all duration-200 ${
+                selectedDay === day.date
+                  ? 'bg-violet-500/20 border-violet-500/40 text-violet-300'
+                  : 'bg-surface border-border text-text-muted hover:border-violet-500/30 hover:text-text-primary'
+              }`}
+            >
+              {formatDayLabel(day.date)}
+              <span className="ml-1.5 text-[9px] opacity-60">({day.count})</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Loading */}
+      {loading && (
+        <div className="flex items-center gap-2 text-text-muted text-xs font-mono py-8">
+          <span className="inline-block h-2 w-2 rounded-full bg-violet-400 animate-pulse" />
+          Loading captures…
+        </div>
+      )}
+
+      {/* Error */}
+      {error && !loading && (
+        <div className="border border-red-500/20 rounded-lg p-4 bg-red-500/5">
+          <p className="text-red-400/70 text-xs font-mono">{error}</p>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!loading && !error && captures.length === 0 && (
+        <div className="border border-border/30 rounded-lg p-8 text-center">
+          <div className="text-3xl mb-3">📸</div>
+          <p className="text-sm font-mono text-text-secondary">No screen captures yet.</p>
+          <p className="text-xs font-mono text-text-muted mt-1">The capture agent will start recording your screen automatically.</p>
+        </div>
+      )}
+
+      {/* Capture grid */}
+      {!loading && filteredCaptures.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          {filteredCaptures.map((cap) => (
+            <button
+              key={cap.id}
+              onClick={() => setSelectedCapture(selectedCapture?.id === cap.id ? null : cap)}
+              className={`group border rounded-lg overflow-hidden transition-all duration-200 text-left ${
+                selectedCapture?.id === cap.id
+                  ? 'border-violet-500/60 ring-1 ring-violet-500/30'
+                  : 'border-border/40 hover:border-violet-500/30'
+              }`}
+            >
+              <div className="aspect-video bg-neutral-900 overflow-hidden">
+                <img
+                  src={captureImageUrl(cap.filepath)}
+                  alt={`Screen capture ${formatCaptureTime(cap.timestamp)}`}
+                  loading="lazy"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+              </div>
+              <div className="px-2 py-1.5 bg-surface/50">
+                <p className="text-[10px] font-mono text-text-muted truncate">
+                  {formatCaptureTime(cap.timestamp)}
+                </p>
+                {cap.has_ocr && (
+                  <p className="text-[9px] font-mono text-violet-400/50 truncate mt-0.5">
+                    OCR ✓
+                  </p>
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Expanded capture detail */}
+      {selectedCapture && (
+        <div className="mt-4 border border-violet-500/30 rounded-lg overflow-hidden bg-violet-500/5">
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-xs font-mono text-text-primary">
+                  {formatFullDate(selectedCapture.timestamp)}
+                </p>
+                <p className="text-[10px] font-mono text-text-muted mt-0.5">
+                  {selectedCapture.width}×{selectedCapture.height} · Monitor {selectedCapture.monitor_index}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedCapture(null)}
+                className="text-text-muted hover:text-text-primary transition-colors p-1"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+            <img
+              src={captureImageUrl(selectedCapture.filepath)}
+              alt="Full capture"
+              className="w-full rounded-md border border-border/20"
+            />
+            {selectedCapture.text_preview && (
+              <div className="mt-3 p-3 rounded-md bg-black/20 border border-border/20">
+                <p className="text-[10px] font-mono text-text-muted tracking-wider mb-1.5">OCR TEXT</p>
+                <p className="text-[11px] font-mono text-text-secondary leading-relaxed whitespace-pre-wrap">
+                  {selectedCapture.text_preview.slice(0, 500)}
+                  {selectedCapture.text_preview.length > 500 ? '…' : ''}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
 /* ───────────────────── Main Page ───────────────────── */
 
 export function MemoryPage() {
   return (
     <div>
       <MemoryStatsHeader />
+      <TimelineSection />
       <SearchSection />
       <SourcesSection />
     </div>
