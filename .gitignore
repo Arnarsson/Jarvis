@@ -43,3 +43,4 @@ data/
 credentials.json
 client_secret*.json
 token.json
+server/claude/

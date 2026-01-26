@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>EUREKA — Machine Status</title>
+<meta http-equiv="refresh" content="10">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #111; color: #e5e5e5; font-family: 'JetBrains Mono', 'SF Mono', monospace; padding: 24px; }
+  h1 { font-size: 13px; text-transform: uppercase; letter-spacing: 3px; color: #666; margin-bottom: 20px; }
+  h1 span { color: #DC2626; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 14px; }
+  .card-title { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: #555; margin-bottom: 10px; border-bottom: 1px solid #DC2626; padding-bottom: 6px; }
+  .terminal { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid #1f1f1f; }
+  .terminal:last-child { border-bottom: none; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot.active { background: #22c55e; animation: pulse 1.5s infinite; }
+  .dot.idle { background: #eab308; }
+  .dot.waiting { background: #555; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .terminal-name { font-size: 12px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .terminal-status { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; }
+  .terminal-status.active { color: #22c55e; }
+  .terminal-status.idle { color: #eab308; }
+  .terminal-status.waiting { color: #555; }
+  .stat { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #1f1f1f; font-size: 12px; }
+  .stat:last-child { border-bottom: none; }
+  .stat-label { color: #777; }
+  .stat-value.good { color: #22c55e; }
+  .stat-value.warn { color: #eab308; }
+  .stat-value.bad { color: #DC2626; }
+  .footer { font-size: 10px; color: #333; text-align: center; margin-top: 16px; }
+</style>
+</head>
+<body>
+<h1><span>●</span> EUREKA MACHINE STATUS — 14:35:53</h1>
+<div class="grid">
+  <div class="card"><div class="card-title">Claude Code Terminals</div><div class="terminal"><div class="dot waiting"></div><div class="terminal-name">Super Shift S</div><div class="terminal-status waiting">WAITING</div></div><div class="terminal"><div class="dot waiting"></div><div class="terminal-name">Draggable Dock Menu</div><div class="terminal-status waiting">WAITING</div></div><div class="terminal"><div class="dot active"></div><div class="terminal-name">Email Categorization System</div><div class="terminal-status active">ACTIVE</div></div><div class="terminal"><div class="dot idle"></div><div class="terminal-name">Terminal Monitoring</div><div class="terminal-status idle">IDLE</div></div></div>
+  <div class="card"><div class="card-title">System</div><div class="stat"><span class="stat-label">Load</span><span class="stat-value good">1.79 / 20 cores</span></div><div class="stat"><span class="stat-label">Memory</span><span class="stat-value good">17Gi / 62Gi</span></div><div class="stat"><span class="stat-label">Disk</span><span class="stat-value good">32% used</span></div><div class="stat"><span class="stat-label">Uptime</span><span class="stat-value">4 hours, 50 minutes</span></div></div>
+  <div class="card"><div class="card-title">Docker</div><div class="stat"><span class="stat-label">jarvis-server</span><span class="stat-value good">Up 13 seconds</span></div><div class="stat"><span class="stat-label">jarvis-frontend</span><span class="stat-value good">Up 34 minutes</span></div><div class="stat"><span class="stat-label">jarvis-worker</span><span class="stat-value good">Up 2 hours</span></div><div class="stat"><span class="stat-label">jarvis-postgres</span><span class="stat-value good">Up 2 hours</span></div><div class="stat"><span class="stat-label">jarvis-qdrant</span><span class="stat-value good">Up 2 hours</span></div><div class="stat"><span class="stat-label">jarvis-redis</span><span class="stat-value good">Up 2 hours</span></div><div class="stat"><span class="stat-label">mysql8</span><span class="stat-value good">Up 5 hours</span></div></div>
+  <div class="card"><div class="card-title">Projects</div><div class="stat"><span class="stat-label">Jarvis Frontend</span><span class="stat-value good">200 · 27 files</span></div><div class="stat"><span class="stat-label">Jarvis API</span><span class="stat-value good">200</span></div><div class="stat"><span class="stat-label">RecruiTOS</span><span class="stat-value good">200 · recruitos.xyz</span></div></div>
+</div>
+<div class="footer">Auto-refresh 10s</div>
+</body></html>

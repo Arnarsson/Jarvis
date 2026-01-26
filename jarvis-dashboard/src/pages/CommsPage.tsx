@@ -23,6 +23,7 @@ interface EmailMessageResponse {
   date_sent: string
   is_unread: boolean
   is_important: boolean
+  category: string | null
 }
 
 interface EmailMessageDetailResponse extends EmailMessageResponse {
@@ -49,6 +50,18 @@ interface SyncResponse {
   deleted: number
 }
 
+interface CategoryCount {
+  name: string
+  total: number
+  unread: number
+}
+
+interface CategoryCountsResponse {
+  categories: CategoryCount[]
+}
+
+type EmailCategory = 'all' | 'priority' | 'newsletter' | 'notification' | 'low_priority'
+
 // ---------------------------------------------------------------------------
 // Data fetchers
 // ---------------------------------------------------------------------------
@@ -61,12 +74,19 @@ async function fetchAuthStatus(): Promise<AuthStatusResponse> {
   }
 }
 
-async function fetchMessages(): Promise<EmailListResponse> {
-  return apiGet<EmailListResponse>('/api/email/messages?limit=25')
+async function fetchMessages(category: EmailCategory): Promise<EmailListResponse> {
+  const params = category === 'all'
+    ? 'limit=50'
+    : `limit=50&category=${category}`
+  return apiGet<EmailListResponse>(`/api/email/messages?${params}`)
 }
 
 async function fetchMessageDetail(id: string): Promise<EmailMessageDetailResponse> {
   return apiGet<EmailMessageDetailResponse>(`/api/email/messages/${id}`)
+}
+
+async function fetchCategoryCounts(): Promise<CategoryCountsResponse> {
+  return apiGet<CategoryCountsResponse>('/api/email/categories/counts')
 }
 
 // ---------------------------------------------------------------------------
@@ -142,7 +162,7 @@ function cleanBodyText(text: string): string {
 
 function truncate(text: string, maxLen: number): string {
   if (text.length <= maxLen) return text
-  return text.slice(0, maxLen).trimEnd() + '…'
+  return text.slice(0, maxLen).trimEnd() + '\u2026'
 }
 
 // ---------------------------------------------------------------------------
@@ -219,6 +239,62 @@ function StatsBar({ messages }: { messages: EmailMessageResponse[] }) {
           </p>
         </div>
       ))}
+    </div>
+  )
+}
+
+const CATEGORY_TABS: { key: EmailCategory; label: string }[] = [
+  { key: 'all', label: 'ALL' },
+  { key: 'priority', label: 'PRIORITY' },
+  { key: 'newsletter', label: 'NEWSLETTER' },
+  { key: 'notification', label: 'NOTIFICATION' },
+  { key: 'low_priority', label: 'LOW PRIORITY' },
+]
+
+function CategoryTabs({
+  active,
+  onChange,
+  counts,
+}: {
+  active: EmailCategory
+  onChange: (cat: EmailCategory) => void
+  counts: CategoryCount[]
+}) {
+  const countMap = Object.fromEntries(counts.map((c) => [c.name, c]))
+  const totalUnread = counts.reduce((sum, c) => sum + c.unread, 0)
+
+  return (
+    <div className="flex gap-2 mb-6 flex-wrap">
+      {CATEGORY_TABS.map((tab) => {
+        const unread = tab.key === 'all'
+          ? totalUnread
+          : countMap[tab.key]?.unread ?? 0
+
+        return (
+          <button
+            key={tab.key}
+            onClick={() => onChange(tab.key)}
+            className={`font-mono text-[11px] tracking-wider px-3 py-1.5 border transition-colors flex items-center gap-2 ${
+              active === tab.key
+                ? 'border-accent text-accent bg-accent/10'
+                : 'border-border text-text-secondary hover:text-text-primary hover:border-border-light'
+            }`}
+          >
+            {tab.label}
+            {unread > 0 && (
+              <span
+                className={`font-mono text-[9px] px-1.5 py-0.5 rounded-sm ${
+                  active === tab.key
+                    ? 'bg-accent/20 text-accent'
+                    : 'bg-surface-alt text-text-muted'
+                }`}
+              >
+                {unread}
+              </span>
+            )}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -359,7 +435,7 @@ function SyncButton() {
   const syncMutation = useMutation({
     mutationFn: () => apiPost<SyncResponse>('/api/email/sync'),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['email', 'messages'] })
+      queryClient.invalidateQueries({ queryKey: ['email'] })
     },
   })
 
@@ -391,6 +467,7 @@ function SyncButton() {
 
 export function CommsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [activeCategory, setActiveCategory] = useState<EmailCategory>('priority')
 
   // Auth status
   const { data: auth, isLoading: authLoading } = useQuery({
@@ -398,15 +475,30 @@ export function CommsPage() {
     queryFn: fetchAuthStatus,
   })
 
-  // Messages (only when authenticated)
+  const authenticated = auth?.authenticated === true
+
+  // Category counts
+  const { data: countsData } = useQuery({
+    queryKey: ['email', 'categories', 'counts'],
+    queryFn: fetchCategoryCounts,
+    enabled: authenticated,
+  })
+
+  // Messages filtered by active category
   const { data: emailData, isLoading: messagesLoading } = useQuery({
-    queryKey: ['email', 'messages'],
-    queryFn: fetchMessages,
-    enabled: auth?.authenticated === true,
+    queryKey: ['email', 'messages', activeCategory],
+    queryFn: () => fetchMessages(activeCategory),
+    enabled: authenticated,
   })
 
   const messages = emailData?.messages ?? []
-  const authenticated = auth?.authenticated === true
+  const counts = countsData?.categories ?? []
+
+  // Reset expanded message when switching tabs
+  const handleCategoryChange = (cat: EmailCategory) => {
+    setActiveCategory(cat)
+    setExpandedId(null)
+  }
 
   return (
     <div>
@@ -431,9 +523,15 @@ export function CommsPage() {
             <>
               <StatsBar messages={messages} />
 
+              <CategoryTabs
+                active={activeCategory}
+                onChange={handleCategoryChange}
+                counts={counts}
+              />
+
               {messages.length === 0 ? (
                 <p className="text-sm text-text-secondary py-4">
-                  No messages found. Try syncing your inbox.
+                  No messages in this category.
                 </p>
               ) : (
                 <div className="border border-border">

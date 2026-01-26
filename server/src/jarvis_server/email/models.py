@@ -71,6 +71,11 @@ class EmailMessage(Base):
     is_unread: Mapped[bool] = mapped_column(default=False)
     is_important: Mapped[bool] = mapped_column(default=False)
 
+    # Classification
+    category: Mapped[str | None] = mapped_column(
+        String(20), nullable=True
+    )  # priority, newsletter, notification, low_priority
+
     # Processing status
     processing_status: Mapped[str] = mapped_column(
         String(20), default="pending"
@@ -89,6 +94,7 @@ class EmailMessage(Base):
         Index("ix_email_messages_gmail_id", "gmail_message_id"),
         Index("ix_email_messages_from", "from_address"),
         Index("ix_email_messages_thread", "thread_id"),
+        Index("ix_email_messages_category", "category"),
     )
 
     def __repr__(self) -> str:
