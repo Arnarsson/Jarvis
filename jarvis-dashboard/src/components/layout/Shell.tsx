@@ -83,7 +83,7 @@ function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
               onClick={onNavClick}
               className={`block py-2 text-[13px] font-mono tracking-wider transition-colors ${
                 isActive
-                  ? 'text-text-primary'
+                  ? 'text-accent'
                   : 'text-text-secondary hover:text-text-primary'
               }`}
             >
@@ -112,7 +112,7 @@ function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
               {connectionStatus === 'online' ? 'ONLINE' : 'OFFLINE'}
             </span>
           </div>
-          <p className="text-[12px] text-text-secondary pl-4">Sven Arnarsson</p>
+          <p className="text-[12px] font-mono tracking-wider text-text-secondary pl-4">SVEN</p>
         </div>
 
         {/* Theme toggle */}
@@ -159,13 +159,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Desktop sidebar — always visible on lg+ */}
-      <aside className="hidden lg:flex w-[192px] shrink-0 flex-col bg-surface border-r border-border">
+      <aside className="hidden lg:flex w-[220px] shrink-0 flex-col bg-bg border-r border-border">
         <SidebarContent />
       </aside>
 
       {/* Mobile sidebar — slide-in drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[192px] flex-col bg-surface border-r border-border transition-transform duration-200 lg:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[220px] flex-col bg-bg border-r border-border transition-transform duration-200 lg:hidden ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >

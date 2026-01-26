@@ -3,6 +3,8 @@ import { fetchUpcomingMeetings } from '../api/calendar.ts'
 import { fetchWorkflowSuggestions, fetchEmailAuthStatus } from '../api/health.ts'
 import { apiGet } from '../api/client.ts'
 
+// Removed unused fetchSearchHealth - velocity now derived from workflow suggestions
+
 export interface DashboardStats {
   meetingsToday: number
   inboundCount: number
@@ -12,17 +14,13 @@ export interface DashboardStats {
 
 interface EmailMessage {
   id: string
-  is_unread: boolean
+  is_read: boolean
+  is_unread?: boolean
 }
 
 interface EmailListResponse {
   messages: EmailMessage[]
   count: number
-}
-
-interface SearchHealth {
-  status: string
-  document_count?: number
 }
 
 function isToday(isoString: string): boolean {
@@ -40,17 +38,9 @@ async function fetchEmailCount(): Promise<number> {
     const auth = await fetchEmailAuthStatus()
     if (!auth.authenticated) return 0
     const data = await apiGet<EmailListResponse>('/api/email/messages')
-    return data.messages.filter((m) => m.is_unread).length
+    return data.messages.filter((m) => m.is_read === false).length
   } catch {
     return 0
-  }
-}
-
-async function fetchSearchHealth(): Promise<SearchHealth> {
-  try {
-    return await apiGet<SearchHealth>('/api/search/health')
-  } catch {
-    return { status: 'unknown' }
   }
 }
 
@@ -71,17 +61,17 @@ export function useStats() {
     staleTime: 60_000,
   })
 
-  const searchQuery = useQuery({
-    queryKey: ['search', 'health'],
-    queryFn: fetchSearchHealth,
-    staleTime: 120_000,
-  })
-
   const isLoading = meetingsQuery.isLoading || workflowQuery.isLoading
 
   const todaysMeetings = meetingsQuery.data?.filter((e) => isToday(e.start)) ?? []
-  const docCount = searchQuery.data?.document_count ?? 0
-  const velocity = docCount > 0 ? Math.min(99, Math.round((docCount / 50) * 100)) : 0
+  const suggestions = workflowQuery.data ?? []
+  const totalSuggestions = suggestions.length
+  const approvedSuggestions = suggestions.filter(
+    (s) => (s as Record<string, unknown>).status === 'approved' || (s as Record<string, unknown>).approved === true
+  ).length
+  const velocity = totalSuggestions > 0
+    ? Math.round((approvedSuggestions / totalSuggestions) * 100)
+    : 0
 
   const stats: DashboardStats = {
     meetingsToday: todaysMeetings.length,
