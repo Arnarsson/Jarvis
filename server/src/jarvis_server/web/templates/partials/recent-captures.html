@@ -6,7 +6,7 @@
          hx-get="/api/captures/{{ capture.id }}"
          hx-target="#capture-modal"
          hx-trigger="click">
-        <img src="/captures/{{ capture.file_path }}"
+        <img src="/captures/{{ capture.filepath | replace('/data/captures/', '') }}"
              alt="Capture from {{ capture.timestamp.strftime('%H:%M') }}"
              loading="lazy">
         <div class="capture-thumbnail-overlay">
