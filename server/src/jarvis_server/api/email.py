@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from jarvis_server.db.session import get_db
+from jarvis_server.email.classifier import classify_email
 from jarvis_server.email.models import EmailMessage, EmailSyncState
 from jarvis_server.email.oauth import (
     CredentialsNotFound,
@@ -49,6 +50,7 @@ class EmailMessageResponse(BaseModel):
     date_sent: str
     is_unread: bool = False
     is_important: bool = False
+    category: str | None = None
 
 
 class EmailMessageDetailResponse(EmailMessageResponse):
@@ -127,16 +129,17 @@ async def start_auth() -> AuthStartResponse:
 async def list_messages(
     limit: int = 20,
     from_address: str | None = None,
+    category: str | None = None,
     db: AsyncSession = Depends(get_db),
 ) -> EmailListResponse:
     """List email messages from the local database.
 
     Returns emails that have been synced from Gmail.
-    Use /sync endpoint (future) to sync emails first.
 
     Args:
         limit: Maximum messages to return (default 20, max 100).
         from_address: Optional filter by sender address.
+        category: Optional filter by category (priority, newsletter, notification, low_priority).
         db: Database session.
 
     Returns:
@@ -150,12 +153,15 @@ async def list_messages(
     if from_address:
         query = query.where(EmailMessage.from_address == from_address)
 
+    if category:
+        query = query.where(EmailMessage.category == category)
+
     query = query.limit(limit)
 
     result = await db.execute(query)
     messages = result.scalars().all()
 
-    logger.info("email_messages_listed", count=len(messages))
+    logger.info("email_messages_listed", count=len(messages), category=category)
 
     return EmailListResponse(
         messages=[
@@ -170,6 +176,7 @@ async def list_messages(
                 date_sent=m.date_sent.isoformat(),
                 is_unread=m.is_unread,
                 is_important=m.is_important,
+                category=m.category,
             )
             for m in messages
         ],
@@ -213,6 +220,7 @@ async def get_message(
         date_sent=message.date_sent.isoformat(),
         is_unread=message.is_unread,
         is_important=message.is_important,
+        category=message.category,
         to_addresses=message.to_addresses,
         cc_addresses=message.cc_addresses,
         body_text=message.body_text,
@@ -293,3 +301,89 @@ async def get_sync_status(
         history_id=state.history_id if state else None,
         message_count=message_count,
     )
+
+
+# ---------------------------------------------------------------------------
+# Category endpoints
+# ---------------------------------------------------------------------------
+
+
+class CategoryCount(BaseModel):
+    """Count for a single category."""
+
+    name: str
+    total: int
+    unread: int
+
+
+class CategoryCountsResponse(BaseModel):
+    """Response for category counts endpoint."""
+
+    categories: list[CategoryCount]
+
+
+class ClassifyResponse(BaseModel):
+    """Response for classify backfill endpoint."""
+
+    classified: int
+
+
+@router.get("/categories/counts", response_model=CategoryCountsResponse)
+async def get_category_counts(
+    db: AsyncSession = Depends(get_db),
+) -> CategoryCountsResponse:
+    """Get per-category total and unread counts.
+
+    Returns:
+        List of categories with total and unread counts.
+    """
+    category_names = ["priority", "newsletter", "notification", "low_priority"]
+    categories = []
+
+    for name in category_names:
+        # Total count for this category
+        total_result = await db.execute(
+            select(func.count())
+            .select_from(EmailMessage)
+            .where(EmailMessage.category == name)
+        )
+        total = total_result.scalar() or 0
+
+        # Unread count for this category
+        unread_result = await db.execute(
+            select(func.count())
+            .select_from(EmailMessage)
+            .where(EmailMessage.category == name, EmailMessage.is_unread == True)  # noqa: E712
+        )
+        unread = unread_result.scalar() or 0
+
+        categories.append(CategoryCount(name=name, total=total, unread=unread))
+
+    return CategoryCountsResponse(categories=categories)
+
+
+@router.post("/classify", response_model=ClassifyResponse)
+async def classify_messages(
+    db: AsyncSession = Depends(get_db),
+) -> ClassifyResponse:
+    """Backfill: classify all uncategorized messages.
+
+    Runs the heuristic classifier on every message that has no category set.
+
+    Returns:
+        Count of messages classified.
+    """
+    result = await db.execute(
+        select(EmailMessage).where(EmailMessage.category == None)  # noqa: E711
+    )
+    messages = result.scalars().all()
+
+    classified = 0
+    for msg in messages:
+        msg.category = classify_email(msg)
+        classified += 1
+
+    await db.commit()
+    logger.info("email_classify_backfill", classified=classified)
+
+    return ClassifyResponse(classified=classified)

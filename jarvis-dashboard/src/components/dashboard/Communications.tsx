@@ -7,17 +7,14 @@ interface EmailAuthStatus {
   email?: string
 }
 
-interface EmailMessage {
-  id: string
-  subject: string
-  from_address: string
-  is_unread: boolean
-  is_important: boolean
+interface CategoryCount {
+  name: string
+  total: number
+  unread: number
 }
 
-interface EmailListResponse {
-  messages: EmailMessage[]
-  count: number
+interface CategoryCountsResponse {
+  categories: CategoryCount[]
 }
 
 async function fetchEmailAuth(): Promise<EmailAuthStatus> {
@@ -28,13 +25,8 @@ async function fetchEmailAuth(): Promise<EmailAuthStatus> {
   }
 }
 
-async function fetchEmails(): Promise<EmailMessage[]> {
-  try {
-    const data = await apiGet<EmailListResponse>('/api/email/messages')
-    return data.messages
-  } catch {
-    return []
-  }
+async function fetchCategoryCounts(): Promise<CategoryCountsResponse> {
+  return apiGet<CategoryCountsResponse>('/api/email/categories/counts')
 }
 
 export function Communications() {
@@ -43,14 +35,16 @@ export function Communications() {
     queryFn: fetchEmailAuth,
   })
 
-  const { data: messages, isLoading } = useQuery({
-    queryKey: ['email', 'messages'],
-    queryFn: fetchEmails,
+  const { data: countsData, isLoading } = useQuery({
+    queryKey: ['email', 'categories', 'counts'],
+    queryFn: fetchCategoryCounts,
     enabled: auth?.authenticated === true,
   })
 
-  const unread = messages?.filter((m) => m.is_unread).length ?? 0
-  const priority = messages?.filter((m) => m.is_important).length ?? 0
+  const counts = countsData?.categories ?? []
+  const priorityCount = counts.find((c) => c.name === 'priority')
+  const totalUnread = counts.reduce((sum, c) => sum + c.unread, 0)
+  const totalMessages = counts.reduce((sum, c) => sum + c.total, 0)
 
   return (
     <div>
@@ -66,22 +60,24 @@ export function Communications() {
         <div className="space-y-0">
           <div className="flex items-center justify-between py-3.5 border-b border-border/50">
             <div>
-              <p className="text-[14px] text-text-primary">Unread Volume</p>
+              <p className="text-[14px] text-text-primary">Priority Unread</p>
               <p className="text-[11px] text-text-secondary mt-0.5">
-                {messages?.length ?? 0} total messages
+                {totalUnread} total unread / {totalMessages} messages
               </p>
             </div>
-            <span className="font-mono text-xl font-bold text-text-primary">
-              {unread}
+            <span className="font-mono text-xl font-bold text-accent">
+              {priorityCount?.unread ?? 0}
             </span>
           </div>
           <div className="flex items-center justify-between py-3.5">
             <div>
               <p className="text-[14px] text-text-primary">Priority Threads</p>
-              <p className="text-[11px] text-text-secondary mt-0.5">marked important</p>
+              <p className="text-[11px] text-text-secondary mt-0.5">
+                {priorityCount?.total ?? 0} direct messages
+              </p>
             </div>
             <span className="font-mono text-xl font-bold text-text-primary">
-              {priority}
+              {priorityCount?.total ?? 0}
             </span>
           </div>
         </div>

@@ -14,6 +14,7 @@ from googleapiclient.errors import HttpError
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from jarvis_server.email.classifier import classify_email
 from jarvis_server.email.models import EmailMessage, EmailSyncState
 from jarvis_server.email.oauth import get_gmail_service, GmailAuthRequired
 
@@ -274,9 +275,13 @@ async def store_message(db: AsyncSession, message: dict) -> tuple[bool, bool]:
     if existing:
         for key, value in message_data.items():
             setattr(existing, key, value)
+        # Classify if not already categorized
+        if not existing.category:
+            existing.category = classify_email(existing)
         return (False, True)
     else:
         email = EmailMessage(gmail_message_id=gmail_id, **message_data)
+        email.category = classify_email(email)
         db.add(email)
         return (True, False)
 
