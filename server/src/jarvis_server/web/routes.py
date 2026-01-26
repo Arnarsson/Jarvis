@@ -59,6 +59,26 @@ async def calendar(request: Request) -> HTMLResponse:
     )
 
 
+@router.get("/catchup", response_class=HTMLResponse)
+async def catchup(request: Request) -> HTMLResponse:
+    """Catch Up page - AI-powered topic summaries."""
+    return templates.TemplateResponse(
+        request=request,
+        name="catchup.html",
+        context={"page_title": "Catch Up"},
+    )
+
+
+@router.get("/workflows", response_class=HTMLResponse)
+async def workflows(request: Request) -> HTMLResponse:
+    """Workflows page - manage automations and patterns."""
+    return templates.TemplateResponse(
+        request=request,
+        name="workflows.html",
+        context={"page_title": "Workflows"},
+    )
+
+
 @router.get("/settings", response_class=HTMLResponse)
 async def settings(request: Request) -> HTMLResponse:
     """Settings page - configuration options."""

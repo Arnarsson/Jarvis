@@ -1,14 +1,14 @@
 """Context recovery tool for catching up on topics.
 
 This module implements the catch_me_up MCP tool which helps users
-recover context on any project or topic by summarizing recent activity.
+recover context on any project or topic by summarizing recent activity
+using AI-powered summarization.
 """
 
 from __future__ import annotations
 
 import time
-from datetime import datetime, timedelta, timezone
-from typing import Annotated
+from typing import Annotated, Literal
 
 import httpx
 import structlog
@@ -38,21 +38,28 @@ async def catch_me_up(
         Field(
             default=7,
             ge=1,
-            le=30,
+            le=90,
             description="How many days back to look",
         ),
     ] = 7,
+    style: Annotated[
+        Literal["summary", "detailed"],
+        Field(
+            default="detailed",
+            description="Summary style: 'summary' for brief overview, 'detailed' for comprehensive briefing",
+        ),
+    ] = "detailed",
 ) -> str:
-    """Get a context summary for a topic or project.
+    """Get an AI-generated context summary for a topic or project.
 
-    Reviews recent activity across all memory sources related to the
-    specified topic, then provides a chronological summary to help you
-    get back up to speed quickly.
+    Searches across all memory sources (screen captures, emails, chats,
+    calendar events) and uses Claude to synthesize a comprehensive briefing
+    covering timeline, key points, people involved, and next steps.
 
     Examples:
-    - "project alpha" - summarize recent project activity
-    - "API redesign" - catch up on API discussions
-    - "team standup" - review recent standup notes
+    - "project alpha" - get full briefing on project activity
+    - "API redesign" - catch up on API discussions and decisions
+    - "team standup" - review recent standup notes and action items
     """
     start_time = time.monotonic()
 
@@ -60,72 +67,44 @@ async def catch_me_up(
         # Validate and sanitize input
         sanitized_topic = validate_topic(topic)
 
-        # Calculate date range
-        end_date = datetime.now(tz=timezone.utc)
-        start_date = end_date - timedelta(days=days)
-
-        # Query the search API with date filter
+        # Call the catchup API which uses Claude for summarization
         client = await get_client()
         response = await client.post(
-            "/api/search/",
+            "/api/catchup/",
             json={
-                "query": sanitized_topic,
-                "limit": 20,
-                "start_date": start_date.isoformat(),
-                "end_date": end_date.isoformat(),
+                "topic": sanitized_topic,
+                "days_back": days,
+                "style": style,
             },
+            timeout=60.0,  # Allow time for LLM summarization
         )
         response.raise_for_status()
         data = response.json()
 
-        results = data.get("results", [])
+        summary = data.get("summary", "No summary generated.")
+        sources = data.get("sources_searched", {})
+        total_items = sum(sources.values())
 
-        # Format results grouped by date
-        if not results:
-            result_text = (
-                f"No activity found for '{topic}' in the last {days} days."
-            )
-            duration_ms = (time.monotonic() - start_time) * 1000
-            log_mcp_call(
-                tool_name="catch_me_up",
-                input_params={"topic": topic, "days": days},
-                result_summary="No results found",
-                duration_ms=duration_ms,
-                success=True,
-            )
-            return result_text
-
-        # Group results by date
-        by_date: dict[str, list[dict]] = {}
-        for r in results:
-            date_key = r.get("timestamp", "")[:10]
-            if date_key:
-                by_date.setdefault(date_key, []).append(r)
-
-        # Build formatted output
+        # Build result with metadata
         lines = [
-            f"Context recovery for '{topic}' (last {days} days):\n",
-            f"Found {len(results)} relevant items across {len(by_date)} days.\n",
+            f"# Catch-up: {topic}",
+            f"*Last {days} days | {total_items} items from {len(sources)} sources*\n",
+            summary,
         ]
 
-        # Sort dates descending and limit to 5
-        sorted_dates = sorted(by_date.keys(), reverse=True)[:5]
-
-        for date in sorted_dates:
-            lines.append(f"\n**{date}**:")
-            # Limit to 3 items per date
-            for item in by_date[date][:3]:
-                source = item.get("source", "unknown")
-                text = item.get("text", "")[:100]
-                lines.append(f"  - [{source}] {text}")
+        if sources:
+            lines.append("\n---")
+            lines.append("**Sources:** " + ", ".join(
+                f"{k}({v})" for k, v in sources.items()
+            ))
 
         result_text = "\n".join(lines)
 
         duration_ms = (time.monotonic() - start_time) * 1000
         log_mcp_call(
             tool_name="catch_me_up",
-            input_params={"topic": topic, "days": days},
-            result_summary=f"Found {len(results)} items across {len(by_date)} days",
+            input_params={"topic": topic, "days": days, "style": style},
+            result_summary=f"Generated {style} summary from {total_items} items",
             duration_ms=duration_ms,
             success=True,
         )
@@ -136,7 +115,7 @@ async def catch_me_up(
         duration_ms = (time.monotonic() - start_time) * 1000
         log_mcp_call(
             tool_name="catch_me_up",
-            input_params={"topic": topic, "days": days},
+            input_params={"topic": topic, "days": days, "style": style},
             result_summary="",
             duration_ms=duration_ms,
             success=False,
@@ -144,15 +123,122 @@ async def catch_me_up(
         )
         raise ToolError("Context recovery temporarily unavailable")
 
+    except httpx.TimeoutException:
+        duration_ms = (time.monotonic() - start_time) * 1000
+        log_mcp_call(
+            tool_name="catch_me_up",
+            input_params={"topic": topic, "days": days, "style": style},
+            result_summary="",
+            duration_ms=duration_ms,
+            success=False,
+            error="Timeout waiting for summary generation",
+        )
+        raise ToolError("Summary generation timed out - try a shorter timeframe")
+
     except Exception as e:
         logger.exception("catch_me_up_failed")
         duration_ms = (time.monotonic() - start_time) * 1000
         log_mcp_call(
             tool_name="catch_me_up",
-            input_params={"topic": topic, "days": days},
+            input_params={"topic": topic, "days": days, "style": style},
             result_summary="",
             duration_ms=duration_ms,
             success=False,
             error=str(e),
         )
         raise ToolError("Context recovery failed")
+
+
+@mcp.tool()
+async def morning_briefing() -> str:
+    """Get your morning briefing with today's schedule and relevant context.
+
+    Provides a comprehensive overview of your day including:
+    - Today's calendar events and meetings
+    - Key topics from your schedule
+    - Relevant context from recent activity
+
+    Use this at the start of your day to get up to speed quickly.
+    """
+    start_time = time.monotonic()
+
+    try:
+        client = await get_client()
+        response = await client.get(
+            "/api/catchup/morning",
+            timeout=90.0,  # Allow time for LLM summarization
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        date = data.get("date", "today")
+        meetings = data.get("meetings_today", [])
+        briefing = data.get("briefing", "No briefing available.")
+
+        # Build formatted output
+        lines = [
+            f"# Morning Briefing - {date}",
+            "",
+        ]
+
+        if meetings:
+            lines.append(f"**{len(meetings)} meeting(s) today:**")
+            for m in meetings:
+                attendees = ", ".join(m.get("attendees", [])[:3])
+                if attendees:
+                    lines.append(f"- {m['time']}: {m['title']} ({attendees})")
+                else:
+                    lines.append(f"- {m['time']}: {m['title']}")
+            lines.append("")
+
+        lines.append(briefing)
+
+        result_text = "\n".join(lines)
+
+        duration_ms = (time.monotonic() - start_time) * 1000
+        log_mcp_call(
+            tool_name="morning_briefing",
+            input_params={},
+            result_summary=f"Generated briefing with {len(meetings)} meetings",
+            duration_ms=duration_ms,
+            success=True,
+        )
+
+        return result_text
+
+    except httpx.HTTPStatusError as e:
+        duration_ms = (time.monotonic() - start_time) * 1000
+        log_mcp_call(
+            tool_name="morning_briefing",
+            input_params={},
+            result_summary="",
+            duration_ms=duration_ms,
+            success=False,
+            error=str(e),
+        )
+        raise ToolError("Morning briefing temporarily unavailable")
+
+    except httpx.TimeoutException:
+        duration_ms = (time.monotonic() - start_time) * 1000
+        log_mcp_call(
+            tool_name="morning_briefing",
+            input_params={},
+            result_summary="",
+            duration_ms=duration_ms,
+            success=False,
+            error="Timeout waiting for briefing generation",
+        )
+        raise ToolError("Morning briefing generation timed out")
+
+    except Exception as e:
+        logger.exception("morning_briefing_failed")
+        duration_ms = (time.monotonic() - start_time) * 1000
+        log_mcp_call(
+            tool_name="morning_briefing",
+            input_params={},
+            result_summary="",
+            duration_ms=duration_ms,
+            success=False,
+            error=str(e),
+        )
+        raise ToolError("Morning briefing failed")

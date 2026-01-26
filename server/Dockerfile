@@ -25,7 +25,8 @@ RUN python -m venv /app/.venv \
 FROM python:3.11-slim
 
 # Install runtime dependencies
-# OpenCV (via EasyOCR) requires X11/graphics libraries even in headless mode
+# OpenCV requires X11/graphics libraries even in headless mode
+# Tesseract for fast CPU-based OCR
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
@@ -35,6 +36,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxext6 \
     libxrender1 \
     libxcb1 \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    tesseract-ocr-dan \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security

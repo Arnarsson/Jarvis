@@ -15,10 +15,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Privacy-First Capture Foundation** - Desktop agent captures screens, server infrastructure deployed, security foundations established
 - [x] **Phase 2: Searchable Memory (RAG Core)** - OCR pipeline processes captures, embeddings enable semantic search across all content
 - [x] **Phase 3: MCP Server & Claude Code** - Claude Code can query Jarvis memory and get caught up on any topic
-- [ ] **Phase 4: Calendar & Meeting Intelligence** - Calendar sync enables meeting detection, audio transcription, summaries and pre-meeting briefs
-- [ ] **Phase 5: Email & Communication Context** - Email context integrated into memory and pre-meeting briefs
-- [ ] **Phase 6: Workflow Automation Engine** - Pattern detection identifies repeated workflows, tiered trust enables safe automation
-- [ ] **Phase 7: Web UI & Visualization** - Browser dashboard for timeline browsing, search, settings, and workflow management
+- [x] **Phase 4: Calendar & Meeting Intelligence** - Calendar sync enables meeting detection, audio transcription, summaries and pre-meeting briefs
+- [x] **Phase 5: Email & Communication Context** - Email context integrated into memory and pre-meeting briefs
+- [x] **Phase 6: Workflow Automation Engine** - Pattern detection identifies repeated workflows, tiered trust enables safe automation
+- [x] **Phase 7: Web UI & Visualization** - Browser dashboard for timeline browsing, search, settings, and workflow management
+- [x] **Phase 8: Never Lose Context** - AI-powered catch-up summaries, morning briefings, and context recovery
 
 ## Phase Details
 
@@ -130,7 +131,7 @@ Plans:
 - [x] 05-03-PLAN.md — Email search integration (embeddings)
 - [x] 05-04-PLAN.md — Pre-meeting brief enrichment with email
 - [x] 05-05-PLAN.md — MCP tools for email access
-- [ ] 05-06-PLAN.md — End-to-end verification (checkpoint)
+- [x] 05-06-PLAN.md — End-to-end verification (checkpoint)
 
 ### Phase 6: Workflow Automation Engine
 **Goal**: User's repeated workflows are detected and can be automated with tiered trust levels
@@ -142,12 +143,16 @@ Plans:
   3. Approved workflows can be promoted to auto-execute mode
   4. Destructive actions never auto-execute without human approval
   5. User can undo automated actions for 24 hours
-**Plans**: TBD
+**Plans**: 7 plans in 4 waves
 
 Plans:
-- [ ] 06-01: TBD
-- [ ] 06-02: TBD
-- [ ] 06-03: TBD
+- [x] 06-01-PLAN.md — Database models and pattern repository
+- [x] 06-02-PLAN.md — Pattern detector and sequence analyzer
+- [x] 06-03-PLAN.md — Suggestion generator and approval API
+- [x] 06-04-PLAN.md — Workflow execution engine
+- [x] 06-05-PLAN.md — Safety guardrails (destructive blocking, false positives, undo)
+- [x] 06-06-PLAN.md — Web UI for workflow management and MCP tools
+- [x] 06-07-PLAN.md — End-to-end verification (checkpoint)
 
 ### Phase 7: Web UI & Visualization
 **Goal**: User can access Jarvis through a web dashboard over Tailscale
@@ -167,12 +172,26 @@ Plans:
 - [x] 07-03-PLAN.md — Search interface with filters
 - [x] 07-04-PLAN.md — Calendar and meetings dashboard
 - [x] 07-05-PLAN.md — Settings and configuration UI
-- [ ] 07-06-PLAN.md — End-to-end verification (checkpoint)
+- [x] 07-06-PLAN.md — End-to-end verification (checkpoint)
+
+### Phase 8: Never Lose Context
+**Goal**: User can get AI-powered catch-up summaries on any topic and receive morning briefings
+**Depends on**: Phase 2 (search), Phase 4 (calendar), Phase 5 (email)
+**Requirements**: Derived from core "never lose context" vision
+**Success Criteria** (what must be TRUE):
+  1. User can request a catch-up summary on any topic and receive AI-synthesized briefing
+  2. Morning briefing endpoint combines today's calendar with relevant context
+  3. MCP tools enable catch-up and morning briefing access from Claude Code
+  4. Web UI provides interface for topic-based catch-up
+**Plans**: 1 plan
+
+Plans:
+- [x] 08-01-PLAN.md — Catch Me Up API with summarization, morning briefings, MCP tools, and web UI
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -180,9 +199,10 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 2. Searchable Memory (RAG Core) | 9/9 | **Complete** | 2026-01-25 |
 | 3. MCP Server & Claude Code | 5/5 | **Complete** | 2026-01-25 |
 | 4. Calendar & Meeting Intelligence | 9/9 | **Complete** | 2026-01-25 |
-| 5. Email & Communication Context | 5/6 | **Verification** | - |
-| 6. Workflow Automation Engine | 0/TBD | Not started | - |
-| 7. Web UI & Visualization | 5/6 | **Verification** | - |
+| 5. Email & Communication Context | 6/6 | **Complete** | 2026-01-26 |
+| 6. Workflow Automation Engine | 7/7 | **Complete** | 2026-01-26 |
+| 7. Web UI & Visualization | 6/6 | **Complete** | 2026-01-26 |
+| 8. Never Lose Context | 1/1 | **Complete** | 2026-01-25 |
 
 ---
 *Roadmap created: 2026-01-24*
@@ -193,4 +213,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 *Phase 3 planned: 2026-01-25*
 *Phase 3 completed: 2026-01-25*
 *Phase 4 planned: 2026-01-25*
+*Phase 8 completed: 2026-01-25*
 *Coverage: 50/50 v1 requirements mapped*

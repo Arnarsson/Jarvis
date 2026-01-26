@@ -1,0 +1,541 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div x-data="workflowsApp()">
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">Workflow Automations</h1>
+        <p class="mt-1 text-sm text-gray-500">Manage patterns Jarvis has learned and automations it can run for you</p>
+    </div>
+
+    <!-- Stats bar -->
+    <div class="mb-6 grid grid-cols-4 gap-4">
+        <div class="rounded-lg bg-white p-4 shadow">
+            <div class="text-sm text-gray-500">Suggestions</div>
+            <div class="text-2xl font-bold text-indigo-600" x-text="stats.suggestions">0</div>
+        </div>
+        <div class="rounded-lg bg-white p-4 shadow">
+            <div class="text-sm text-gray-500">Active</div>
+            <div class="text-2xl font-bold text-green-600" x-text="stats.active">0</div>
+        </div>
+        <div class="rounded-lg bg-white p-4 shadow">
+            <div class="text-sm text-gray-500">Executions Today</div>
+            <div class="text-2xl font-bold text-blue-600" x-text="stats.executions">0</div>
+        </div>
+        <div class="rounded-lg bg-white p-4 shadow">
+            <div class="text-sm text-gray-500">Suspended</div>
+            <div class="text-2xl font-bold text-red-600" x-text="stats.suspended">0</div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="mb-6 border-b border-gray-200">
+        <nav class="-mb-px flex space-x-8">
+            <button @click="tab = 'suggestions'; loadTab()"
+                    :class="tab === 'suggestions' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                    class="whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium">
+                Suggestions
+                <span x-show="stats.suggestions > 0"
+                      class="ml-2 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-600"
+                      x-text="stats.suggestions"></span>
+            </button>
+            <button @click="tab = 'active'; loadTab()"
+                    :class="tab === 'active' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                    class="whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium">
+                Active
+            </button>
+            <button @click="tab = 'history'; loadTab()"
+                    :class="tab === 'history' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                    class="whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium">
+                History
+            </button>
+            <button @click="tab = 'suspended'; loadTab()"
+                    :class="tab === 'suspended' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                    class="whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium">
+                Suspended
+            </button>
+        </nav>
+    </div>
+
+    <!-- Loading -->
+    <div x-show="loading" class="flex justify-center py-12">
+        <svg class="h-8 w-8 animate-spin text-indigo-600" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+    </div>
+
+    <!-- Suggestions Tab -->
+    <div x-show="tab === 'suggestions' && !loading" x-cloak>
+        <template x-if="suggestions.length === 0">
+            <div class="rounded-lg bg-white p-8 text-center shadow">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                </svg>
+                <h3 class="mt-4 text-lg font-medium text-gray-900">No suggestions yet</h3>
+                <p class="mt-2 text-sm text-gray-500">Jarvis is learning your patterns. Suggestions will appear here once patterns are detected frequently enough.</p>
+            </div>
+        </template>
+        <div class="space-y-4">
+            <template x-for="s in suggestions" :key="s.id">
+                <div class="rounded-lg bg-white p-6 shadow">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <h3 class="text-lg font-medium text-gray-900" x-text="s.name"></h3>
+                            <p class="mt-1 text-sm text-gray-500" x-text="s.description"></p>
+                            <div class="mt-3 space-y-1">
+                                <p class="text-sm"><span class="font-medium text-gray-700">Trigger:</span> <span class="text-gray-600" x-text="s.trigger_description"></span></p>
+                                <p class="text-sm"><span class="font-medium text-gray-700">Action:</span> <span class="text-gray-600" x-text="s.action_description"></span></p>
+                            </div>
+                            <div class="mt-3 flex items-center space-x-4">
+                                <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800" x-text="s.pattern_type"></span>
+                                <span class="text-xs text-gray-500">Confidence: <span x-text="Math.round(s.confidence * 100) + '%'"></span></span>
+                            </div>
+                        </div>
+                        <div class="ml-4 flex flex-col space-y-2">
+                            <button @click="approveSuggestion(s.id)"
+                                    class="rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700">
+                                Approve
+                            </button>
+                            <button @click="rejectSuggestion(s.id)"
+                                    class="rounded-md bg-red-100 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-200">
+                                Reject
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Active Tab -->
+    <div x-show="tab === 'active' && !loading" x-cloak>
+        <template x-if="activePatterns.length === 0">
+            <div class="rounded-lg bg-white p-8 text-center shadow">
+                <h3 class="text-lg font-medium text-gray-900">No active automations</h3>
+                <p class="mt-2 text-sm text-gray-500">Approve suggestions to create active automations.</p>
+            </div>
+        </template>
+        <div class="space-y-4">
+            <template x-for="p in activePatterns" :key="p.id">
+                <div class="rounded-lg bg-white p-6 shadow">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-3">
+                                <h3 class="text-lg font-medium text-gray-900" x-text="p.name"></h3>
+                                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
+                                      :class="p.trust_tier === 'auto' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'"
+                                      x-text="p.trust_tier"></span>
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500" x-text="p.description || 'No description'"></p>
+                            <div class="mt-3 flex items-center space-x-6 text-sm text-gray-500">
+                                <span>Seen <span class="font-medium" x-text="p.frequency_count"></span> times</span>
+                                <span>Accuracy: <span class="font-medium" x-text="Math.round(p.accuracy * 100) + '%'"></span></span>
+                                <span>Executions: <span class="font-medium" x-text="p.total_executions"></span></span>
+                            </div>
+                        </div>
+                        <div class="ml-4 flex items-center space-x-2">
+                            <button @click="showPatternDetail(p.id)"
+                                    class="rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-200">
+                                Details
+                            </button>
+                            <button @click="suspendPattern(p.id)"
+                                    class="rounded-md bg-red-100 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-200">
+                                Suspend
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- History Tab -->
+    <div x-show="tab === 'history' && !loading" x-cloak>
+        <template x-if="executions.length === 0">
+            <div class="rounded-lg bg-white p-8 text-center shadow">
+                <h3 class="text-lg font-medium text-gray-900">No executions yet</h3>
+                <p class="mt-2 text-sm text-gray-500">Workflow execution history will appear here.</p>
+            </div>
+        </template>
+        <div class="space-y-3">
+            <template x-for="ex in executions" :key="ex.id">
+                <div class="rounded-lg bg-white p-4 shadow">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-3">
+                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+                                      :class="{
+                                          'bg-green-100 text-green-800': ex.status === 'completed',
+                                          'bg-red-100 text-red-800': ex.status === 'failed',
+                                          'bg-yellow-100 text-yellow-800': ex.status === 'running',
+                                          'bg-gray-100 text-gray-800': ex.status === 'undone'
+                                      }"
+                                      x-text="ex.status"></span>
+                                <span class="text-sm font-medium text-gray-900" x-text="ex.pattern_id.substring(0, 8) + '...'"></span>
+                                <span class="text-xs text-gray-500" x-text="formatDate(ex.created_at)"></span>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <!-- Feedback buttons -->
+                            <template x-if="ex.status === 'completed' && ex.was_correct === null">
+                                <div class="flex space-x-1">
+                                    <button @click="giveFeedback(ex.id, true)"
+                                            class="rounded p-1 text-gray-400 hover:bg-green-100 hover:text-green-600"
+                                            title="Correct">
+                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.633 10.5c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3a.75.75 0 01.75-.75A2.25 2.25 0 0116.5 4.5c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H14.23c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 00-1.423-.23H5.904M14.25 9h2.25M5.904 18.75c.083.205.173.405.27.602.197.4-.078.898-.523.898h-.908c-.889 0-1.713-.518-1.972-1.368a12 12 0 01-.521-3.507c0-1.553.295-3.036.831-4.398C3.387 10.203 4.167 9.75 5 9.75h1.053c.472 0 .745.556.5.96a8.958 8.958 0 00-1.302 4.665c0 1.194.232 2.333.654 3.375z" />
+                                        </svg>
+                                    </button>
+                                    <button @click="giveFeedback(ex.id, false)"
+                                            class="rounded p-1 text-gray-400 hover:bg-red-100 hover:text-red-600"
+                                            title="Incorrect">
+                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 15h2.25m8.024-9.75c.011.05.028.1.052.148.591 1.2.924 2.55.924 3.977a8.96 8.96 0 01-1.302 4.666c-.245.403.028.959.5.959h1.053c.832 0 1.612-.453 1.918-1.227C20.705 12.46 21 11.013 21 9.5c0-1.22-.295-2.37-.831-3.375a1.126 1.126 0 00-1.091-.625H16.5a.75.75 0 01-.663-.397 8.96 8.96 0 00-2.362-2.868A3.724 3.724 0 0012 1.5c-.63 0-1.164.461-1.286 1.082a5.63 5.63 0 00-.322 1.672c0 .598.131 1.168.322 1.672.193.502.337.988.433 1.41.13.57-.192 1.162-.764 1.162H7.878a1.121 1.121 0 00-1.05.716A11.996 11.996 0 006 13.5c0 1.232.186 2.42.532 3.54.186.6.763 1.04 1.39 1.04h.46a.5.5 0 00.46-.692 7.926 7.926 0 01-.458-2.638c0-1.946.688-3.726 1.839-5.116.281-.34.581-.655.898-.943" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </template>
+                            <template x-if="ex.was_correct !== null">
+                                <span class="text-xs" :class="ex.was_correct ? 'text-green-600' : 'text-red-600'"
+                                      x-text="ex.was_correct ? 'Correct' : 'Incorrect'"></span>
+                            </template>
+                            <!-- Undo button -->
+                            <template x-if="ex.status === 'completed' && ex.undo_available_until && new Date(ex.undo_available_until) > new Date()">
+                                <button @click="undoExecution(ex.id)"
+                                        class="rounded-md bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800 hover:bg-yellow-200">
+                                    Undo
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Suspended Tab -->
+    <div x-show="tab === 'suspended' && !loading" x-cloak>
+        <template x-if="suspendedPatterns.length === 0">
+            <div class="rounded-lg bg-white p-8 text-center shadow">
+                <h3 class="text-lg font-medium text-gray-900">No suspended patterns</h3>
+                <p class="mt-2 text-sm text-gray-500">Patterns suspended due to low accuracy or manual action will appear here.</p>
+            </div>
+        </template>
+        <div class="space-y-4">
+            <template x-for="p in suspendedPatterns" :key="p.id">
+                <div class="rounded-lg bg-white p-6 shadow border-l-4 border-red-400">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <h3 class="text-lg font-medium text-gray-900" x-text="p.name"></h3>
+                            <p class="mt-1 text-sm text-gray-500" x-text="p.description || 'No description'"></p>
+                            <div class="mt-2 text-sm text-red-600">
+                                Accuracy: <span x-text="Math.round(p.accuracy * 100) + '%'"></span>
+                            </div>
+                        </div>
+                        <button @click="unsuspendPattern(p.id)"
+                                class="rounded-md bg-green-100 px-3 py-1.5 text-sm font-medium text-green-700 hover:bg-green-200">
+                            Reactivate
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Pattern Detail Modal -->
+    <div x-show="showModal" x-cloak
+         class="fixed inset-0 z-50 overflow-y-auto"
+         @keydown.escape.window="showModal = false">
+        <div class="flex min-h-screen items-center justify-center p-4">
+            <div x-show="showModal" class="fixed inset-0 bg-gray-500 bg-opacity-75" @click="showModal = false"></div>
+            <div x-show="showModal"
+                 x-transition
+                 class="relative w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl">
+                <template x-if="modalPattern">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-xl font-bold text-gray-900" x-text="modalPattern.name"></h2>
+                            <button @click="showModal = false" class="text-gray-400 hover:text-gray-600">
+                                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <p class="text-sm text-gray-500 mb-4" x-text="modalPattern.description || 'No description'"></p>
+
+                        <!-- Trust Tier -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Trust Tier</label>
+                            <div class="flex space-x-2">
+                                <template x-for="tier in ['observe', 'suggest', 'auto']" :key="tier">
+                                    <button @click="promoteTier(modalPattern.id, tier)"
+                                            :class="modalPattern.trust_tier === tier ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                                            class="rounded-md px-3 py-1.5 text-sm font-medium capitalize"
+                                            x-text="tier"></button>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Stats -->
+                        <div class="mb-4 grid grid-cols-3 gap-4">
+                            <div class="rounded bg-gray-50 p-3 text-center">
+                                <div class="text-xs text-gray-500">Frequency</div>
+                                <div class="text-lg font-bold" x-text="modalPattern.frequency_count"></div>
+                            </div>
+                            <div class="rounded bg-gray-50 p-3 text-center">
+                                <div class="text-xs text-gray-500">Accuracy</div>
+                                <div class="text-lg font-bold" x-text="modalPattern.stats ? Math.round((modalPattern.stats.accuracy || 0) * 100) + '%' : 'N/A'"></div>
+                            </div>
+                            <div class="rounded bg-gray-50 p-3 text-center">
+                                <div class="text-xs text-gray-500">Executions</div>
+                                <div class="text-lg font-bold" x-text="modalPattern.stats ? modalPattern.stats.total_executions : 0"></div>
+                            </div>
+                        </div>
+
+                        <!-- Safety -->
+                        <template x-if="modalSafety">
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Safety Classification</label>
+                                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
+                                      :class="{
+                                          'bg-green-100 text-green-800': modalSafety.overall_safety === 'safe',
+                                          'bg-yellow-100 text-yellow-800': modalSafety.overall_safety === 'caution',
+                                          'bg-red-100 text-red-800': modalSafety.overall_safety === 'destructive'
+                                      }"
+                                      x-text="modalSafety.overall_safety"></span>
+                            </div>
+                        </template>
+
+                        <!-- Actions -->
+                        <div class="flex justify-end space-x-2 mt-6 pt-4 border-t">
+                            <button @click="suspendPattern(modalPattern.id); showModal = false"
+                                    class="rounded-md bg-red-100 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-200">
+                                Suspend
+                            </button>
+                            <button @click="showModal = false"
+                                    class="rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error message -->
+    <div x-show="error" x-cloak class="mt-4 rounded-lg bg-red-50 p-4 border border-red-200">
+        <div class="flex">
+            <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+            </svg>
+            <p class="ml-3 text-sm text-red-700" x-text="error"></p>
+        </div>
+    </div>
+
+    <!-- Toast notification -->
+    <div x-show="toast" x-cloak
+         x-transition:enter="transform ease-out duration-300 transition"
+         x-transition:enter-start="translate-y-2 opacity-0"
+         x-transition:enter-end="translate-y-0 opacity-100"
+         x-transition:leave="transition ease-in duration-100"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed bottom-4 right-4 z-50 rounded-lg bg-gray-800 px-4 py-3 text-sm text-white shadow-lg"
+         x-text="toast"></div>
+</div>
+
+<script>
+function workflowsApp() {
+    return {
+        tab: 'suggestions',
+        loading: false,
+        error: null,
+        toast: null,
+        showModal: false,
+        modalPattern: null,
+        modalSafety: null,
+        stats: { suggestions: 0, active: 0, executions: 0, suspended: 0 },
+        suggestions: [],
+        activePatterns: [],
+        executions: [],
+        suspendedPatterns: [],
+
+        async init() {
+            await this.loadStats();
+            await this.loadTab();
+        },
+
+        async loadStats() {
+            try {
+                const [sugRes, activeRes, suspRes, exRes] = await Promise.all([
+                    fetch('/api/workflow/suggestions'),
+                    fetch('/api/workflow/patterns?active_only=true'),
+                    fetch('/api/workflow/patterns?active_only=false'),
+                    fetch('/api/workflow/executions?limit=50'),
+                ]);
+                const sugData = await sugRes.json();
+                const activeData = await activeRes.json();
+                const suspData = await suspRes.json();
+                const exData = await exRes.json();
+
+                this.stats.suggestions = sugData.total || 0;
+                this.stats.active = (activeData.patterns || []).filter(p => p.trust_tier !== 'observe').length;
+                this.stats.suspended = (suspData.patterns || []).filter(p => !p.is_active).length;
+                this.stats.executions = (exData.executions || []).length;
+            } catch (e) {
+                console.error('Failed to load stats', e);
+            }
+        },
+
+        async loadTab() {
+            this.loading = true;
+            this.error = null;
+            try {
+                if (this.tab === 'suggestions') {
+                    const res = await fetch('/api/workflow/suggestions');
+                    const data = await res.json();
+                    this.suggestions = data.suggestions || [];
+                } else if (this.tab === 'active') {
+                    const res = await fetch('/api/workflow/patterns?active_only=true');
+                    const data = await res.json();
+                    this.activePatterns = (data.patterns || []).filter(p => p.trust_tier !== 'observe');
+                } else if (this.tab === 'history') {
+                    const res = await fetch('/api/workflow/executions?limit=50');
+                    const data = await res.json();
+                    this.executions = data.executions || [];
+                } else if (this.tab === 'suspended') {
+                    const res = await fetch('/api/workflow/patterns?active_only=false');
+                    const data = await res.json();
+                    this.suspendedPatterns = (data.patterns || []).filter(p => !p.is_active);
+                }
+            } catch (e) {
+                this.error = 'Failed to load data: ' + e.message;
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async approveSuggestion(id) {
+            try {
+                const res = await fetch(`/api/workflow/suggestions/${id}/approve`, { method: 'POST' });
+                if (!res.ok) throw new Error('Failed to approve');
+                this.showToast('Suggestion approved');
+                await this.loadStats();
+                await this.loadTab();
+            } catch (e) {
+                this.error = e.message;
+            }
+        },
+
+        async rejectSuggestion(id) {
+            try {
+                const res = await fetch(`/api/workflow/suggestions/${id}/reject`, { method: 'POST' });
+                if (!res.ok) throw new Error('Failed to reject');
+                this.showToast('Suggestion rejected');
+                await this.loadStats();
+                await this.loadTab();
+            } catch (e) {
+                this.error = e.message;
+            }
+        },
+
+        async suspendPattern(id) {
+            try {
+                const res = await fetch(`/api/workflow/patterns/${id}/suspend`, { method: 'POST' });
+                if (!res.ok) throw new Error('Failed to suspend');
+                this.showToast('Pattern suspended');
+                await this.loadStats();
+                await this.loadTab();
+            } catch (e) {
+                this.error = e.message;
+            }
+        },
+
+        async unsuspendPattern(id) {
+            try {
+                const res = await fetch(`/api/workflow/patterns/${id}/unsuspend`, { method: 'POST' });
+                if (!res.ok) throw new Error('Failed to reactivate');
+                this.showToast('Pattern reactivated');
+                await this.loadStats();
+                await this.loadTab();
+            } catch (e) {
+                this.error = e.message;
+            }
+        },
+
+        async showPatternDetail(id) {
+            try {
+                const [patRes, safeRes] = await Promise.all([
+                    fetch(`/api/workflow/patterns/${id}`),
+                    fetch(`/api/workflow/patterns/${id}/safety`),
+                ]);
+                this.modalPattern = await patRes.json();
+                this.modalSafety = await safeRes.json();
+                this.showModal = true;
+            } catch (e) {
+                this.error = 'Failed to load pattern details';
+            }
+        },
+
+        async promoteTier(id, tier) {
+            try {
+                const res = await fetch(`/api/workflow/patterns/${id}/promote?tier=${tier}`, { method: 'POST' });
+                if (!res.ok) throw new Error('Failed to promote');
+                this.modalPattern.trust_tier = tier;
+                this.showToast(`Promoted to ${tier}`);
+                await this.loadStats();
+            } catch (e) {
+                this.error = e.message;
+            }
+        },
+
+        async giveFeedback(executionId, wasCorrect) {
+            try {
+                const res = await fetch(`/api/workflow/executions/${executionId}/feedback`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ was_correct: wasCorrect }),
+                });
+                if (!res.ok) throw new Error('Failed to record feedback');
+                const data = await res.json();
+                this.showToast(wasCorrect ? 'Marked as correct' : 'Marked as incorrect');
+                if (data.suspension) {
+                    this.showToast('Pattern auto-suspended due to low accuracy');
+                }
+                await this.loadTab();
+            } catch (e) {
+                this.error = e.message;
+            }
+        },
+
+        async undoExecution(id) {
+            try {
+                const res = await fetch(`/api/workflow/executions/${id}/undo`, { method: 'POST' });
+                if (!res.ok) throw new Error('Failed to undo');
+                this.showToast('Execution undone');
+                await this.loadTab();
+            } catch (e) {
+                this.error = e.message;
+            }
+        },
+
+        formatDate(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            return d.toLocaleString();
+        },
+
+        showToast(msg) {
+            this.toast = msg;
+            setTimeout(() => { this.toast = null; }, 3000);
+        }
+    };
+}
+</script>
+
+<style>
+[x-cloak] { display: none !important; }
+</style>
+{% endblock %}

@@ -8,7 +8,7 @@
             <span class="text-xs">{{ event.start_time.strftime('%a') }}</span>
         </div>
         <div class="meeting-details">
-            <p class="meeting-title">{{ event.title }}</p>
+            <p class="meeting-title">{{ event.summary }}</p>
             <p class="meeting-meta">
                 {{ event.start_time.strftime('%b %d, %Y') }}
                 {% if event.meeting_link %}

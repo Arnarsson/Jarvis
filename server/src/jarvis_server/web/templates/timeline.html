@@ -218,16 +218,27 @@ function timelineView() {
         async loadCaptures() {
             if (!this.selectedDate) return;
 
-            const grid = document.getElementById('capture-grid');
             let url = `/api/web/timeline/grid?date=${this.selectedDate}`;
             if (this.cursor) {
                 url += `&cursor=${encodeURIComponent(this.cursor)}`;
             }
 
-            // Use HTMX to load content
+            const self = this;
+
+            // Use HTMX to load content with callback
             htmx.ajax('GET', url, {
                 target: '#capture-grid',
                 swap: this.cursor ? 'beforeend' : 'innerHTML'
+            }).then(() => {
+                // Update state from loaded content
+                setTimeout(() => {
+                    const contentDiv = document.getElementById('capture-grid-content');
+                    if (contentDiv) {
+                        self.cursor = contentDiv.dataset.nextCursor || null;
+                        self.totalCaptures = parseInt(contentDiv.dataset.total || '0');
+                        self.hasMore = contentDiv.dataset.hasMore === 'true';
+                    }
+                }, 50);
             });
         },
 
@@ -270,18 +281,23 @@ function timelineView() {
 // Listen for HTMX events to update state
 document.body.addEventListener('htmx:afterSwap', function(evt) {
     if (evt.detail.target.id === 'capture-grid') {
-        // Extract pagination info from response headers or data attributes
-        const grid = evt.detail.target;
-        const nextCursor = grid.dataset.nextCursor;
-        const total = parseInt(grid.dataset.total || '0');
-        const hasMore = grid.dataset.hasMore === 'true';
+        // Extract pagination info from the inner content div
+        const contentDiv = document.getElementById('capture-grid-content');
+        if (!contentDiv) return;
 
-        // Update Alpine state
+        const nextCursor = contentDiv.dataset.nextCursor;
+        const total = parseInt(contentDiv.dataset.total || '0');
+        const hasMore = contentDiv.dataset.hasMore === 'true';
+
+        // Update Alpine state (Alpine.js v3 API)
         const timelineEl = document.querySelector('[x-data]');
-        if (timelineEl && timelineEl.__x) {
-            timelineEl.__x.$data.cursor = nextCursor || null;
-            timelineEl.__x.$data.totalCaptures = total;
-            timelineEl.__x.$data.hasMore = hasMore;
+        if (timelineEl) {
+            const data = Alpine.$data(timelineEl);
+            if (data) {
+                data.cursor = nextCursor || null;
+                data.totalCaptures = total;
+                data.hasMore = hasMore;
+            }
         }
     }
 });
@@ -291,10 +307,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
-                // Load more when sentinel is visible
+                // Load more when sentinel is visible (Alpine.js v3 API)
                 const timelineEl = document.querySelector('[x-data]');
-                if (timelineEl && timelineEl.__x) {
-                    timelineEl.__x.$data.loadMore();
+                if (timelineEl) {
+                    const data = Alpine.$data(timelineEl);
+                    if (data && data.loadMore) {
+                        data.loadMore();
+                    }
                 }
             }
         });

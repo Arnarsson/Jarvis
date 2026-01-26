@@ -55,13 +55,14 @@ services:
       - JARVIS_LOG_LEVEL=${JARVIS_LOG_LEVEL:-INFO}
       - JARVIS_DATA_DIR=/data
       - JARVIS_ANTHROPIC_API_KEY=${JARVIS_ANTHROPIC_API_KEY:-}
-      # Model cache paths (container-local, models re-download on restart)
-      - FASTEMBED_CACHE_PATH=/tmp/fastembed
-      - HF_HOME=/tmp/huggingface
-      - EASYOCR_MODULE_PATH=/tmp/easyocr
+      # Model cache paths (persistent volume for faster startup)
+      - FASTEMBED_CACHE_PATH=/data/models/fastembed
+      - HF_HOME=/data/models/huggingface
+      - EASYOCR_MODULE_PATH=/data/models/easyocr
     volumes:
       - captures:/data/captures
       - ./data/calendar:/data/calendar
+      - model_cache:/data/models
     depends_on:
       postgres:
         condition: service_healthy
@@ -75,7 +76,12 @@ services:
     deploy:
       resources:
         limits:
-          memory: 4G
+          memory: 8G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
   postgres:
     image: postgres:15-alpine
@@ -134,6 +140,8 @@ volumes:
     name: jarvis-redis-data
   captures:
     name: jarvis-captures
+  model_cache:
+    name: jarvis-model-cache
 
 networks:
   jarvis-net:

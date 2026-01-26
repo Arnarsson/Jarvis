@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div x-data="catchupApp()">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold text-gray-900">Catch Me Up</h1>
+        <p class="mt-1 text-sm text-gray-500">Get AI-powered summaries of any topic from your memory</p>
+    </div>
+
+    <!-- Morning Briefing Card -->
+    <div class="mb-8">
+        <div class="rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 p-6 text-white shadow-lg">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-semibold">Morning Briefing</h2>
+                    <p class="mt-1 text-indigo-100">Your daily overview with today's schedule and context</p>
+                </div>
+                <button @click="getMorningBriefing()"
+                        :disabled="loading"
+                        class="rounded-lg bg-white/20 px-4 py-2 font-medium hover:bg-white/30 disabled:opacity-50">
+                    <span x-show="!loading">Get Briefing</span>
+                    <span x-show="loading" class="flex items-center">
+                        <svg class="h-5 w-5 animate-spin mr-2" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Loading...
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Catch Up Form -->
+    <div class="mb-8 rounded-lg bg-white p-6 shadow">
+        <h3 class="mb-4 text-lg font-medium text-gray-900">Catch up on any topic</h3>
+        <form @submit.prevent="catchUp()" class="space-y-4">
+            <div>
+                <label for="topic" class="block text-sm font-medium text-gray-700">Topic</label>
+                <input type="text"
+                       id="topic"
+                       x-model="topic"
+                       placeholder="e.g., project alpha, API redesign, team standup"
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                       required>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label for="days" class="block text-sm font-medium text-gray-700">Timeframe</label>
+                    <select id="days"
+                            x-model="days"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                        <option value="1">Today</option>
+                        <option value="3">Last 3 days</option>
+                        <option value="7" selected>Last week</option>
+                        <option value="14">Last 2 weeks</option>
+                        <option value="30">Last month</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="style" class="block text-sm font-medium text-gray-700">Style</label>
+                    <select id="style"
+                            x-model="style"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                        <option value="summary">Brief Summary</option>
+                        <option value="detailed" selected>Detailed Briefing</option>
+                    </select>
+                </div>
+            </div>
+            <button type="submit"
+                    :disabled="loading || !topic"
+                    class="w-full rounded-md bg-indigo-600 px-4 py-2 text-white font-medium hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                <span x-show="!loading">Catch Me Up</span>
+                <span x-show="loading" class="flex items-center justify-center">
+                    <svg class="h-5 w-5 animate-spin mr-2" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Generating summary...
+                </span>
+            </button>
+        </form>
+    </div>
+
+    <!-- Results -->
+    <div x-show="result" x-cloak class="rounded-lg bg-white p-6 shadow">
+        <div class="mb-4 flex items-center justify-between">
+            <h3 class="text-lg font-medium text-gray-900" x-text="resultTitle"></h3>
+            <div x-show="resultMeta" class="text-sm text-gray-500" x-text="resultMeta"></div>
+        </div>
+
+        <!-- Sources -->
+        <div x-show="sources && Object.keys(sources).length > 0" class="mb-4 flex flex-wrap gap-2">
+            <template x-for="(count, source) in sources" :key="source">
+                <span class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-800">
+                    <span x-text="source"></span>
+                    <span class="ml-1 text-gray-500" x-text="'(' + count + ')'"></span>
+                </span>
+            </template>
+        </div>
+
+        <!-- Summary content -->
+        <div class="prose max-w-none">
+            <div x-html="formatMarkdown(result)"></div>
+        </div>
+    </div>
+
+    <!-- Error message -->
+    <div x-show="error" x-cloak class="rounded-lg bg-red-50 p-4 border border-red-200">
+        <div class="flex">
+            <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+            </svg>
+            <p class="ml-3 text-sm text-red-700" x-text="error"></p>
+        </div>
+    </div>
+</div>
+
+<script>
+function catchupApp() {
+    return {
+        topic: '',
+        days: 7,
+        style: 'detailed',
+        loading: false,
+        result: null,
+        resultTitle: '',
+        resultMeta: '',
+        sources: {},
+        error: null,
+
+        async catchUp() {
+            this.loading = true;
+            this.error = null;
+            this.result = null;
+
+            try {
+                const response = await fetch('/api/catchup/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        topic: this.topic,
+                        days_back: parseInt(this.days),
+                        style: this.style
+                    })
+                });
+
+                if (!response.ok) throw new Error('Failed to generate summary');
+
+                const data = await response.json();
+                this.result = data.summary;
+                this.resultTitle = `Catch-up: ${data.topic}`;
+                this.resultMeta = `Last ${data.timeframe_days} days`;
+                this.sources = data.sources_searched || {};
+            } catch (e) {
+                this.error = e.message || 'Failed to generate summary';
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async getMorningBriefing() {
+            this.loading = true;
+            this.error = null;
+            this.result = null;
+
+            try {
+                const response = await fetch('/api/catchup/morning');
+                if (!response.ok) throw new Error('Failed to get morning briefing');
+
+                const data = await response.json();
+                this.result = data.briefing;
+                this.resultTitle = `Morning Briefing - ${data.date}`;
+                this.resultMeta = `${data.meetings_today.length} meeting(s) today`;
+                this.sources = {};
+            } catch (e) {
+                this.error = e.message || 'Failed to get morning briefing';
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        formatMarkdown(text) {
+            if (!text) return '';
+            // Simple markdown conversion
+            return text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/^### (.*$)/gm, '<h3 class="text-lg font-semibold mt-4 mb-2">$1</h3>')
+                .replace(/^## (.*$)/gm, '<h2 class="text-xl font-semibold mt-4 mb-2">$1</h2>')
+                .replace(/^# (.*$)/gm, '<h1 class="text-2xl font-bold mt-4 mb-2">$1</h1>')
+                .replace(/^- (.*$)/gm, '<li class="ml-4">$1</li>')
+                .replace(/^(\d+)\. (.*$)/gm, '<li class="ml-4 list-decimal">$2</li>')
+                .replace(/\n\n/g, '</p><p class="mt-2">')
+                .replace(/\n/g, '<br>');
+        }
+    };
+}
+</script>
+
+<style>
+[x-cloak] { display: none !important; }
+</style>
+{% endblock %}

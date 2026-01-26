@@ -34,6 +34,7 @@ from jarvis_mcp.tools import catchup  # noqa: F401 E402
 from jarvis_mcp.tools import calendar  # noqa: F401 E402
 from jarvis_mcp.tools import meetings  # noqa: F401 E402
 from jarvis_mcp.tools import email  # noqa: F401 E402
+from jarvis_mcp.tools import workflow  # noqa: F401 E402
 
 logger = structlog.get_logger()
 

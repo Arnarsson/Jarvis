@@ -11,6 +11,7 @@ from .embeddings import get_embedding_processor
 from .ocr import get_ocr_processor
 from ..meetings.tasks import summarize_meeting_task
 from ..transcription.tasks import transcribe_meeting_task
+from ..workflow.queue import execute_workflow_task, cleanup_expired_undos
 from .tasks import (
     process_backlog,
     process_capture,
@@ -41,11 +42,13 @@ class WorkerSettings:
         process_email_embeddings,
         transcribe_meeting_task,
         summarize_meeting_task,
+        execute_workflow_task,
     ]
 
-    # Cron jobs for backlog processing
+    # Cron jobs
     cron_jobs = [
         cron(process_backlog, hour={0, 6, 12, 18}, minute=0),  # Every 6 hours
+        cron(cleanup_expired_undos, hour={3}, minute=0),  # Daily at 3am
     ]
 
     # Worker limits
