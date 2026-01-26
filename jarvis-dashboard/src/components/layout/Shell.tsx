@@ -5,16 +5,17 @@ import { fetchHealth } from '../../api/health.ts'
 
 const navItems = [
   { path: '/', label: 'OVERVIEW' },
+  { path: '/memory', label: 'MEMORY' },
   { path: '/schedule', label: 'SCHEDULE' },
   { path: '/comms', label: 'COMMS' },
   { path: '/tasks', label: 'TASKS' },
-  { path: '/catchup', label: 'CATCH UP' },
   { path: '/command', label: 'COMMAND' },
   { path: '/system', label: 'SYSTEM' },
 ]
 
 const mobileNavItems = [
   { path: '/', label: 'Overview', icon: 'grid' },
+  { path: '/memory', label: 'Memory', icon: 'brain' },
   { path: '/schedule', label: 'Schedule', icon: 'calendar' },
   { path: '/comms', label: 'Comms', icon: 'mail' },
   { path: '/command', label: 'Command', icon: 'terminal' },
@@ -32,6 +33,13 @@ function NavIcon({ icon }: { icon: string }) {
           <rect x="14" y="3" width="7" height="7" rx="1" />
           <rect x="3" y="14" width="7" height="7" rx="1" />
           <rect x="14" y="14" width="7" height="7" rx="1" />
+        </svg>
+      )
+    case 'brain':
+      return (
+        <svg {...props} viewBox="0 0 24 24">
+          <path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z" />
+          <path d="M9 21h6M10 17v4M14 17v4" />
         </svg>
       )
     case 'calendar':
