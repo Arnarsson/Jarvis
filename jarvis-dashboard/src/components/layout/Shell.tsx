@@ -68,7 +68,7 @@ function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
       {/* Logo / Branding */}
       <div className="px-6 pt-8 pb-8">
         <h1 className="font-mono text-sm font-bold text-text-primary tracking-widest">
-          E.A./SYSTEM
+          JARVIS/SYSTEM
         </h1>
       </div>
 
@@ -186,7 +186,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             </svg>
           </button>
           <span className="font-mono text-xs font-bold text-text-primary tracking-widest">
-            E.A./SYSTEM
+            JARVIS/SYSTEM
           </span>
         </header>
 
