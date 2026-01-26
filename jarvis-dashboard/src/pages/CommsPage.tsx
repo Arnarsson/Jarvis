@@ -95,9 +95,54 @@ function formatDate(iso: string): string {
   })
 }
 
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+}
+
+function parseAddresses(raw: string): string {
+  // Handle JSON array format: ["addr@example.com"]
+  try {
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed)) return parsed.join(', ')
+  } catch {
+    // not JSON, return as-is
+  }
+  return raw
+}
+
+function cleanBodyText(text: string): string {
+  return text
+    // Strip "View image: (url)" blocks
+    .replace(/View image:\s*\(https?:\/\/[^\)]+\)/gi, '')
+    // Strip "Caption:" on its own line
+    .replace(/^Caption:\s*$/gm, '')
+    // Strip URLs wrapped in parens: ( https://...long... )
+    .replace(/\(\s*https?:\/\/\S{60,}\s*\)/g, '')
+    // Strip standalone long URLs on their own line
+    .replace(/^https?:\/\/\S{60,}$/gm, '')
+    // Strip asterisk/star divider lines
+    .replace(/^[*]{5,}\s*$/gm, '')
+    // Strip dash/equals divider lines
+    .replace(/^[-=]{5,}\s*$/gm, '')
+    // Strip markdown image syntax ![alt](url)
+    .replace(/!\[[^\]]*\]\([^\)]+\)/g, '')
+    // Convert markdown headers to plain text
+    .replace(/^#{1,6}\s+/gm, '')
+    // Collapse 3+ consecutive newlines to 2
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 function truncate(text: string, maxLen: number): string {
   if (text.length <= maxLen) return text
-  return text.slice(0, maxLen).trimEnd() + '...'
+  return text.slice(0, maxLen).trimEnd() + '…'
 }
 
 // ---------------------------------------------------------------------------
@@ -205,20 +250,31 @@ function MessageDetail({ messageId }: { messageId: string }) {
   return (
     <div className="px-4 py-4 bg-surface-alt border-t border-border/30">
       {/* Meta row */}
-      <div className="flex flex-wrap gap-x-6 gap-y-1 mb-3 text-[11px] text-text-secondary font-mono tracking-wide">
+      <div className="space-y-1 mb-4 text-[11px] text-text-secondary font-mono tracking-wide">
         {data.from_address && (
-          <span>
-            FROM: {data.from_name ? `${data.from_name} <${data.from_address}>` : data.from_address}
-          </span>
+          <p>
+            <span className="text-text-muted">FROM</span>{' '}
+            {data.from_name || data.from_address}
+          </p>
         )}
-        {data.to_addresses && <span>TO: {data.to_addresses}</span>}
-        {data.cc_addresses && <span>CC: {data.cc_addresses}</span>}
+        {data.to_addresses && (
+          <p>
+            <span className="text-text-muted">TO</span>{' '}
+            {parseAddresses(data.to_addresses)}
+          </p>
+        )}
+        {data.cc_addresses && (
+          <p>
+            <span className="text-text-muted">CC</span>{' '}
+            {parseAddresses(data.cc_addresses)}
+          </p>
+        )}
       </div>
 
       {/* Body */}
       {data.body_text ? (
-        <div className="text-[13px] text-text-primary leading-relaxed whitespace-pre-wrap max-h-80 overflow-y-auto pr-2">
-          {data.body_text}
+        <div className="text-[13px] text-text-primary/90 leading-relaxed whitespace-pre-wrap max-h-96 overflow-y-auto pr-2">
+          {decodeHtmlEntities(cleanBodyText(data.body_text))}
         </div>
       ) : (
         <p className="text-[12px] text-text-secondary italic">
@@ -239,50 +295,54 @@ function MessageRow({
   onToggle: () => void
 }) {
   const sender = message.from_name || message.from_address || 'Unknown'
+  const snippet = message.snippet ? decodeHtmlEntities(message.snippet) : null
+  const subject = message.subject ? decodeHtmlEntities(message.subject) : null
 
   return (
     <div>
       <button
         onClick={onToggle}
-        className={`w-full text-left flex items-start gap-3 py-3.5 border-b border-border/50 transition-colors hover:bg-surface-alt/50 ${
+        className={`w-full text-left flex items-start gap-3 py-3 border-b border-border/50 transition-colors hover:bg-surface-alt/50 ${
           message.is_important ? 'border-l-2 border-l-accent pl-3' : 'pl-4'
-        }`}
+        } pr-4`}
       >
-        {/* Main content */}
-        <div className="flex-1 min-w-0">
-          {/* Sender */}
-          <p
-            className={`text-[13px] font-medium truncate ${
-              message.is_unread ? 'text-text-primary' : 'text-text-secondary'
-            }`}
-          >
-            {truncate(sender, 32)}
-          </p>
-
-          {/* Subject */}
-          <p
-            className={`text-[13px] truncate mt-0.5 ${
-              message.is_unread ? 'text-text-primary' : 'text-text-secondary/80'
-            }`}
-          >
-            {message.subject || '(no subject)'}
-          </p>
-
-          {/* Snippet - hidden on mobile */}
-          {message.snippet && (
-            <p className="hidden sm:block text-[12px] text-text-secondary truncate mt-0.5">
-              {message.snippet}
-            </p>
+        {/* Unread dot */}
+        <div className="w-2 shrink-0 pt-1.5">
+          {message.is_unread && (
+            <span className="block h-1.5 w-1.5 rounded-full bg-accent" />
           )}
         </div>
 
-        {/* Right side: date + unread indicator */}
-        <div className="flex items-center gap-2 shrink-0 pt-0.5">
-          <span className="font-mono text-[11px] text-text-secondary tracking-wide">
-            {formatDate(message.date_sent)}
-          </span>
-          {message.is_unread && (
-            <span className="inline-block h-2 w-2 rounded-full bg-accent shrink-0" />
+        {/* Main content */}
+        <div className="flex-1 min-w-0">
+          {/* Top row: sender + date */}
+          <div className="flex items-baseline justify-between gap-3">
+            <p
+              className={`text-[13px] truncate ${
+                message.is_unread ? 'text-text-primary font-medium' : 'text-text-secondary'
+              }`}
+            >
+              {truncate(sender, 36)}
+            </p>
+            <span className="font-mono text-[10px] text-text-muted tracking-wide shrink-0">
+              {formatDate(message.date_sent)}
+            </span>
+          </div>
+
+          {/* Subject */}
+          <p
+            className={`text-[12px] truncate mt-0.5 ${
+              message.is_unread ? 'text-text-primary/80' : 'text-text-secondary/70'
+            }`}
+          >
+            {subject || '(no subject)'}
+          </p>
+
+          {/* Snippet */}
+          {snippet && (
+            <p className="text-[11px] text-text-muted truncate mt-0.5">
+              {snippet}
+            </p>
           )}
         </div>
       </button>
