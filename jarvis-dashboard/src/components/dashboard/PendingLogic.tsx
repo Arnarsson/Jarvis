@@ -2,39 +2,11 @@ import { useQuery } from '@tanstack/react-query'
 import { fetchWorkflowSuggestions } from '../../api/health.ts'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton.tsx'
 
-// Static fallback data matching the design
-const fallbackItems = [
-  {
-    id: '1',
-    title: 'Q1 Marketing Budget',
-    subtitle: 'Value: $2.5M / From: CMO',
-  },
-  {
-    id: '2',
-    title: 'Partnership: Microsoft',
-    subtitle: 'Reviewing Legal Clauses',
-  },
-  {
-    id: '3',
-    title: 'Senior Engineer Hire',
-    subtitle: 'Hiring Pipeline / V.P. ENG',
-  },
-]
-
 export function PendingLogic() {
   const { data: suggestions, isLoading } = useQuery({
     queryKey: ['workflow', 'suggestions'],
     queryFn: fetchWorkflowSuggestions,
   })
-
-  const items =
-    suggestions && suggestions.length > 0
-      ? suggestions.map((s) => ({
-          id: s.id,
-          title: s.title,
-          subtitle: `${s.type} / ${s.priority}`,
-        }))
-      : fallbackItems
 
   return (
     <div>
@@ -42,9 +14,9 @@ export function PendingLogic() {
 
       {isLoading ? (
         <LoadingSkeleton lines={3} />
-      ) : (
+      ) : suggestions && suggestions.length > 0 ? (
         <div className="space-y-0">
-          {items.map((item) => (
+          {suggestions.map((item) => (
             <div
               key={item.id}
               className="flex items-center justify-between py-4 border-b border-border/50 last:border-b-0"
@@ -54,7 +26,7 @@ export function PendingLogic() {
                   {item.title}
                 </p>
                 <p className="text-[12px] text-text-secondary mt-1">
-                  {item.subtitle}
+                  {item.type} / {item.priority}
                 </p>
               </div>
               <button className="ml-4 shrink-0 font-mono text-[12px] tracking-wider text-accent hover:text-accent-hover transition-colors font-bold">
@@ -63,6 +35,10 @@ export function PendingLogic() {
             </div>
           ))}
         </div>
+      ) : (
+        <p className="text-sm text-text-secondary py-4">
+          No pending decisions
+        </p>
       )}
     </div>
   )

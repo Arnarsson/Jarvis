@@ -1,12 +1,42 @@
 import { useQuery } from '@tanstack/react-query'
 import { fetchUpcomingMeetings } from '../api/calendar.ts'
-import { fetchWorkflowSuggestions } from '../api/health.ts'
+import { fetchWorkflowSuggestions, fetchEmailAuthStatus } from '../api/health.ts'
+import { apiGet } from '../api/client.ts'
 
 export interface DashboardStats {
   meetingsToday: number
   inboundCount: number
   pendingActions: number
   velocity: number
+}
+
+interface EmailMessage {
+  id: string
+  is_read: boolean
+}
+
+interface SearchHealth {
+  status: string
+  document_count?: number
+}
+
+async function fetchEmailCount(): Promise<number> {
+  try {
+    const auth = await fetchEmailAuthStatus()
+    if (!auth.authenticated) return 0
+    const messages = await apiGet<EmailMessage[]>('/api/email/messages')
+    return messages.filter((m) => !m.is_read).length
+  } catch {
+    return 0
+  }
+}
+
+async function fetchSearchHealth(): Promise<SearchHealth> {
+  try {
+    return await apiGet<SearchHealth>('/api/search/health')
+  } catch {
+    return { status: 'unknown' }
+  }
 }
 
 export function useStats() {
@@ -20,13 +50,28 @@ export function useStats() {
     queryFn: fetchWorkflowSuggestions,
   })
 
+  const emailQuery = useQuery({
+    queryKey: ['email', 'unread-count'],
+    queryFn: fetchEmailCount,
+    staleTime: 60_000,
+  })
+
+  const searchQuery = useQuery({
+    queryKey: ['search', 'health'],
+    queryFn: fetchSearchHealth,
+    staleTime: 120_000,
+  })
+
   const isLoading = meetingsQuery.isLoading || workflowQuery.isLoading
+
+  const docCount = searchQuery.data?.document_count ?? 0
+  const velocity = docCount > 0 ? Math.min(99, Math.round((docCount / 50) * 100)) : 0
 
   const stats: DashboardStats = {
     meetingsToday: meetingsQuery.data?.length ?? 0,
-    inboundCount: 45,
+    inboundCount: emailQuery.data ?? 0,
     pendingActions: workflowQuery.data?.length ?? 0,
-    velocity: 92,
+    velocity,
   }
 
   return {
