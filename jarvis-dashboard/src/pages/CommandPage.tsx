@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { apiGet, apiPost } from '../api/client.ts'
 
@@ -81,6 +82,7 @@ function renderContent(text: string) {
 // --- Component ---
 
 export function CommandPage() {
+  const navigate = useNavigate()
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [input, setInput] = useState('')
   const [searchMode, setSearchMode] = useState(false)
@@ -181,10 +183,8 @@ export function CommandPage() {
   )
 
   const handleMorningBrief = useCallback(() => {
-    if (isLoading) return
-    appendHistory('user', '/morning-brief')
-    morningMutation.mutate()
-  }, [isLoading, appendHistory, morningMutation])
+    navigate('/catchup')
+  }, [navigate])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -219,9 +219,8 @@ export function CommandPage() {
         {/* Quick action buttons */}
         <div className="flex flex-wrap gap-2">
           <button
-            onClick={() => handleQuickAction('What happened since I was last online?')}
-            disabled={isLoading}
-            className="px-3 py-1.5 border border-border text-text-secondary font-mono text-[11px] tracking-wider uppercase hover:border-accent hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => navigate('/catchup')}
+            className="px-3 py-1.5 border border-border text-text-secondary font-mono text-[11px] tracking-wider uppercase hover:border-accent hover:text-accent transition-colors"
           >
             CATCH UP
           </button>
@@ -303,7 +302,13 @@ export function CommandPage() {
       </div>
 
       {/* Input area */}
-      <div className="shrink-0 mt-3">
+      <form
+        className="shrink-0 mt-3"
+        onSubmit={(e) => {
+          e.preventDefault()
+          handleSubmit()
+        }}
+      >
         {/* Search mode indicator */}
         {searchMode && (
           <div className="mb-2 px-3 py-1.5 bg-accent/5 border border-accent/20 text-accent font-mono text-[11px] tracking-wider">
@@ -326,14 +331,14 @@ export function CommandPage() {
             className="flex-1 bg-surface border border-border rounded px-3 py-2 font-mono text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-light transition-colors disabled:opacity-50"
           />
           <button
-            onClick={handleSubmit}
+            type="submit"
             disabled={isLoading || !input.trim()}
             className="px-4 py-2 border border-accent text-accent font-mono text-xs tracking-wider uppercase hover:bg-accent/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
           >
             SEND
           </button>
         </div>
-      </div>
+      </form>
     </div>
   )
 }

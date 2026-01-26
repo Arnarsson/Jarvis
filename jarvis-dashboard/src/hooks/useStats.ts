@@ -67,7 +67,7 @@ export function useStats() {
   const suggestions = workflowQuery.data ?? []
   const totalSuggestions = suggestions.length
   const approvedSuggestions = suggestions.filter(
-    (s) => (s as Record<string, unknown>).status === 'approved' || (s as Record<string, unknown>).approved === true
+    (s) => (s as unknown as Record<string, unknown>).status === 'approved' || (s as unknown as Record<string, unknown>).approved === true
   ).length
   const velocity = totalSuggestions > 0
     ? Math.round((approvedSuggestions / totalSuggestions) * 100)

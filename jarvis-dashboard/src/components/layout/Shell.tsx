@@ -8,6 +8,7 @@ const navItems = [
   { path: '/schedule', label: 'SCHEDULE' },
   { path: '/comms', label: 'COMMS' },
   { path: '/tasks', label: 'TASKS' },
+  { path: '/catchup', label: 'CATCH UP' },
   { path: '/command', label: 'COMMAND' },
   { path: '/system', label: 'SYSTEM' },
 ]

@@ -34,9 +34,25 @@ interface PatternsResponse {
   patterns: WorkflowPattern[]
 }
 
+interface WorkflowExecution {
+  id: string
+  pattern_id: string
+  pattern_name?: string
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
+  started_at: string
+  completed_at?: string
+  result?: string
+  error?: string
+}
+
+interface ExecutionsResponse {
+  executions: WorkflowExecution[]
+  total?: number
+}
+
 // --- Tabs ---
 
-type Tab = 'pending' | 'patterns'
+type Tab = 'pending' | 'executions' | 'patterns'
 type PatternFilter = 'all' | 'active' | 'suspended'
 
 // --- Confidence bar ---
@@ -91,6 +107,11 @@ function tierBgClass(tier: string): string {
 
 function PendingTab() {
   const queryClient = useQueryClient()
+  const [actionFeedback, setActionFeedback] = useState<{
+    id: string
+    type: 'success' | 'error'
+    message: string
+  } | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['workflow', 'suggestions'],
@@ -107,16 +128,38 @@ function PendingTab() {
   const approveMutation = useMutation({
     mutationFn: (id: string) =>
       apiPost(`/api/workflow/suggestions/${id}/approve`),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
+      setActionFeedback({ id, type: 'success', message: 'Approved' })
       queryClient.invalidateQueries({ queryKey: ['workflow', 'suggestions'] })
+      queryClient.invalidateQueries({ queryKey: ['workflow', 'patterns'] })
+      queryClient.invalidateQueries({ queryKey: ['workflow', 'executions'] })
+      setTimeout(() => setActionFeedback(null), 2000)
+    },
+    onError: (err, id) => {
+      setActionFeedback({
+        id,
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Approve failed',
+      })
+      setTimeout(() => setActionFeedback(null), 4000)
     },
   })
 
   const rejectMutation = useMutation({
     mutationFn: (id: string) =>
       apiPost(`/api/workflow/suggestions/${id}/reject`),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
+      setActionFeedback({ id, type: 'success', message: 'Rejected' })
       queryClient.invalidateQueries({ queryKey: ['workflow', 'suggestions'] })
+      setTimeout(() => setActionFeedback(null), 2000)
+    },
+    onError: (err, id) => {
+      setActionFeedback({
+        id,
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Reject failed',
+      })
+      setTimeout(() => setActionFeedback(null), 4000)
     },
   })
 
@@ -173,24 +216,212 @@ function PendingTab() {
           </div>
 
           {/* Action buttons */}
-          <div className="mt-4 flex flex-col sm:flex-row gap-2">
+          <div className="mt-4 flex flex-col sm:flex-row items-start gap-2">
             <button
+              type="button"
               onClick={() => approveMutation.mutate(suggestion.id)}
-              disabled={approveMutation.isPending}
-              className="font-mono text-[12px] tracking-wider font-bold px-4 py-2 border border-accent text-accent hover:bg-accent/10 transition-colors disabled:opacity-50"
+              disabled={approveMutation.isPending || rejectMutation.isPending}
+              className="font-mono text-[12px] tracking-wider font-bold px-4 py-2 border border-accent text-accent hover:bg-accent/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              APPROVE
+              {approveMutation.isPending && approveMutation.variables === suggestion.id
+                ? 'APPROVING...'
+                : 'APPROVE'}
             </button>
             <button
+              type="button"
               onClick={() => rejectMutation.mutate(suggestion.id)}
-              disabled={rejectMutation.isPending}
-              className="font-mono text-[12px] tracking-wider font-bold px-4 py-2 border border-border text-text-secondary hover:text-text-primary hover:border-border-light transition-colors disabled:opacity-50"
+              disabled={rejectMutation.isPending || approveMutation.isPending}
+              className="font-mono text-[12px] tracking-wider font-bold px-4 py-2 border border-border text-text-secondary hover:text-text-primary hover:border-border-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              REJECT
+              {rejectMutation.isPending && rejectMutation.variables === suggestion.id
+                ? 'REJECTING...'
+                : 'REJECT'}
             </button>
+            {actionFeedback?.id === suggestion.id && (
+              <span
+                className={`font-mono text-[11px] tracking-wider px-3 py-2 ${
+                  actionFeedback.type === 'success'
+                    ? 'text-success'
+                    : 'text-accent'
+                }`}
+              >
+                {actionFeedback.message}
+              </span>
+            )}
           </div>
         </div>
       ))}
+    </div>
+  )
+}
+
+// --- Executions Tab ---
+
+function executionStatusClass(status: string): string {
+  switch (status.toLowerCase()) {
+    case 'completed':
+      return 'border-success/40 text-success bg-success/10'
+    case 'running':
+    case 'pending':
+      return 'border-accent/40 text-accent bg-accent/10'
+    case 'failed':
+      return 'border-red-500/40 text-red-400 bg-red-500/10'
+    case 'cancelled':
+      return 'border-warning/40 text-warning bg-warning/10'
+    default:
+      return 'border-border text-text-secondary bg-border/30'
+  }
+}
+
+function formatTimestamp(ts: string): string {
+  try {
+    const d = new Date(ts)
+    return d.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })
+  } catch {
+    return ts
+  }
+}
+
+function ExecutionsTab() {
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['workflow', 'executions'],
+    queryFn: async () => {
+      try {
+        const res = await apiGet<ExecutionsResponse>('/api/workflow/executions')
+        return res.executions ?? []
+      } catch {
+        return []
+      }
+    },
+    refetchInterval: 10_000, // poll for running executions
+  })
+
+  // Fetch detail for expanded execution
+  const { data: detail } = useQuery({
+    queryKey: ['workflow', 'executions', expandedId],
+    queryFn: async () => {
+      if (!expandedId) return null
+      try {
+        return await apiGet<WorkflowExecution>(
+          `/api/workflow/executions/${expandedId}`
+        )
+      } catch {
+        return null
+      }
+    },
+    enabled: !!expandedId,
+    refetchInterval: (query) => {
+      const d = query.state.data
+      if (d && (d.status === 'running' || d.status === 'pending')) return 3_000
+      return false
+    },
+  })
+
+  if (isLoading) return <LoadingSkeleton lines={4} />
+
+  if (!data || data.length === 0) {
+    return (
+      <p className="text-sm text-text-secondary py-6">
+        No executions yet &mdash; approve a suggestion to trigger one
+      </p>
+    )
+  }
+
+  return (
+    <div className="space-y-0">
+      {data.map((exec) => {
+        const isExpanded = expandedId === exec.id
+        const displayExec = isExpanded && detail ? detail : exec
+        const isLive =
+          displayExec.status === 'running' || displayExec.status === 'pending'
+
+        return (
+          <div
+            key={exec.id}
+            className="py-4 border-b border-border/50 last:border-b-0 cursor-pointer"
+            onClick={() => setExpandedId(isExpanded ? null : exec.id)}
+          >
+            {/* Header row */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <p className="text-[15px] text-text-primary font-medium">
+                  {exec.pattern_name || exec.pattern_id}
+                </p>
+                {isLive && (
+                  <span className="inline-block w-2 h-2 rounded-full bg-accent animate-pulse" />
+                )}
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <span
+                  className={`inline-flex items-center font-mono text-[10px] tracking-wider px-2.5 py-1 border ${executionStatusClass(displayExec.status)}`}
+                >
+                  {displayExec.status.toUpperCase()}
+                </span>
+                <span className="font-mono text-[11px] text-text-secondary">
+                  {formatTimestamp(exec.started_at)}
+                </span>
+              </div>
+            </div>
+
+            {/* Expanded detail */}
+            {isExpanded && (
+              <div className="mt-3 pl-2 space-y-2 text-[13px]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                  <div>
+                    <span className="font-mono text-[10px] tracking-wider text-text-secondary uppercase">
+                      Started
+                    </span>
+                    <p className="text-text-primary mt-0.5">
+                      {formatTimestamp(displayExec.started_at)}
+                    </p>
+                  </div>
+                  {displayExec.completed_at && (
+                    <div>
+                      <span className="font-mono text-[10px] tracking-wider text-text-secondary uppercase">
+                        Completed
+                      </span>
+                      <p className="text-text-primary mt-0.5">
+                        {formatTimestamp(displayExec.completed_at)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                {displayExec.result && (
+                  <div>
+                    <span className="font-mono text-[10px] tracking-wider text-text-secondary uppercase">
+                      Result
+                    </span>
+                    <p className="text-text-primary mt-0.5 whitespace-pre-wrap bg-surface/50 border border-border/30 rounded px-3 py-2 font-mono text-[12px]">
+                      {displayExec.result}
+                    </p>
+                  </div>
+                )}
+                {displayExec.error && (
+                  <div>
+                    <span className="font-mono text-[10px] tracking-wider text-red-400 uppercase">
+                      Error
+                    </span>
+                    <p className="text-red-400 mt-0.5 whitespace-pre-wrap bg-red-500/5 border border-red-500/20 rounded px-3 py-2 font-mono text-[12px]">
+                      {displayExec.error}
+                    </p>
+                  </div>
+                )}
+                <p className="font-mono text-[10px] text-text-muted">
+                  ID: {exec.id}
+                </p>
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -377,6 +608,7 @@ export function TasksPage() {
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'pending', label: 'PENDING' },
+    { key: 'executions', label: 'EXECUTIONS' },
     { key: 'patterns', label: 'PATTERNS' },
   ]
 
