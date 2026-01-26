@@ -82,9 +82,9 @@ export function SmartSummary() {
     staleTime: 60_000,
   })
 
-  // Next meetings
+  // Next meetings — use distinct key to avoid cache collision with useAgenda
   const { data: calendarData } = useQuery({
-    queryKey: ['calendar', 'upcoming'],
+    queryKey: ['calendar', 'upcoming', 'raw'],
     queryFn: async () => {
       try {
         return await apiGet<CalendarResponse>('/api/calendar/events/upcoming')

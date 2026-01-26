@@ -63,8 +63,9 @@ export function useStats() {
 
   const isLoading = meetingsQuery.isLoading || workflowQuery.isLoading
 
-  const todaysMeetings = meetingsQuery.data?.filter((e) => isToday(e.start)) ?? []
-  const suggestions = workflowQuery.data ?? []
+  const meetingsData = Array.isArray(meetingsQuery.data) ? meetingsQuery.data : []
+  const todaysMeetings = meetingsData.filter((e) => isToday(e.start))
+  const suggestions = Array.isArray(workflowQuery.data) ? workflowQuery.data : []
   const totalSuggestions = suggestions.length
   const approvedSuggestions = suggestions.filter(
     (s) => (s as unknown as Record<string, unknown>).status === 'approved' || (s as unknown as Record<string, unknown>).approved === true
@@ -76,7 +77,7 @@ export function useStats() {
   const stats: DashboardStats = {
     meetingsToday: todaysMeetings.length,
     inboundCount: emailQuery.data ?? 0,
-    pendingActions: workflowQuery.data?.length ?? 0,
+    pendingActions: suggestions.length,
     velocity,
   }
 

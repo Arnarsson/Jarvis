@@ -97,14 +97,18 @@ function useTodayEvents() {
   return useQuery<CalendarEvent[]>({
     queryKey: ['schedule', 'today'],
     queryFn: async () => {
-      const data = await apiGet<UpcomingEventsResponse>(
-        '/api/calendar/events/upcoming?limit=50',
-      )
-      const now = new Date()
-      return data.events.filter((e) => {
-        const start = new Date(e.start)
-        return isSameDay(start, now)
-      })
+      try {
+        const data = await apiGet<UpcomingEventsResponse>(
+          '/api/calendar/events/upcoming?limit=50',
+        )
+        const now = new Date()
+        return (data.events ?? []).filter((e) => {
+          const start = new Date(e.start)
+          return isSameDay(start, now)
+        })
+      } catch {
+        return []
+      }
     },
     refetchInterval: 60_000,
   })
@@ -117,10 +121,16 @@ function useWeekEvents() {
 
   return useQuery<StoredEvent[]>({
     queryKey: ['schedule', 'week', weekStart.toISOString()],
-    queryFn: () =>
-      apiGet<StoredEvent[]>(
-        `/api/calendar/events?start_date=${toISODate(weekStart)}&end_date=${toISODate(weekEnd)}&limit=100`,
-      ),
+    queryFn: async () => {
+      try {
+        const data = await apiGet<StoredEvent[]>(
+          `/api/calendar/events?start_date=${toISODate(weekStart)}&end_date=${toISODate(weekEnd)}&limit=100`,
+        )
+        return Array.isArray(data) ? data : []
+      } catch {
+        return []
+      }
+    },
     refetchInterval: 60_000,
   })
 }

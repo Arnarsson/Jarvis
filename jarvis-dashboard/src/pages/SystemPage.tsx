@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiGet, apiPost } from '../api/client.ts'
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton.tsx'
+import { WorkerPanel } from '../components/dashboard/WorkerPanel.tsx'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -531,6 +532,12 @@ export function SystemPage() {
               : 'Not connected'
           }
         />
+      </div>
+
+      {/* Eureka Workers Section */}
+      <h3 className="section-title">Eureka Workers</h3>
+      <div className="mb-10">
+        <WorkerPanel />
       </div>
 
       {/* Data Sync Section */}

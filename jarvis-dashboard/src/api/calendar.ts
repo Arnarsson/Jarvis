@@ -17,6 +17,10 @@ interface CalendarResponse {
 }
 
 export async function fetchUpcomingMeetings(): Promise<CalendarEvent[]> {
-  const data = await apiGet<CalendarResponse>('/api/calendar/events/upcoming')
-  return data.events
+  try {
+    const data = await apiGet<CalendarResponse>('/api/calendar/events/upcoming')
+    return data.events ?? []
+  } catch {
+    return []
+  }
 }
