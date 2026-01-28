@@ -31,10 +31,11 @@ from jarvis_server.api.eureka import router as eureka_router
 from jarvis_server.api.activity import router as activity_router
 from jarvis_server.api.bridge import router as bridge_router
 from jarvis_server.api.daily3 import router as daily3_router
+from jarvis_server.api.today import router as today_router
 from jarvis_server.api.memory_timeline import router as memory_timeline_router
 from jarvis_server.api.quick_capture import router as quick_capture_router
 from jarvis_server.api.promises import router as promises_router
-from jarvis_server.api.patterns import router as patterns_router
+from jarvis_server.api.patterns import router as patterns_router, legacy_router as patterns_legacy_router
 from jarvis_server.api.briefing import router as briefing_router
 from jarvis_server.api.actions import router as actions_router
 from jarvis_server.api.context_handoff import router as context_handoff_router
@@ -165,10 +166,12 @@ def create_app() -> FastAPI:
     app.include_router(activity_router)
     app.include_router(bridge_router)
     app.include_router(daily3_router)
+    app.include_router(today_router)
     app.include_router(memory_timeline_router)
     app.include_router(quick_capture_router)
     app.include_router(promises_router)
     app.include_router(patterns_router)
+    app.include_router(patterns_legacy_router)
     app.include_router(briefing_router)
     app.include_router(actions_router)
     app.include_router(context_handoff_router)

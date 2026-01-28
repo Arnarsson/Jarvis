@@ -1,9 +1,9 @@
 """SQLAlchemy 2.0 ORM models for Jarvis database schema."""
 
-from datetime import datetime
+from datetime import date, datetime
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, Float, Index, Integer, String, Text, func
+from sqlalchemy import Boolean, Date, DateTime, Float, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from jarvis_server.db.base import Base
@@ -358,6 +358,36 @@ class Promise(Base):
     )
 
 
+class Project(Base):
+    """Lightweight user project created from patterns/insights.
+
+    Jarvis currently derives most project information heuristically (Project Pulse).
+    This table is intentionally minimal and is used for "Convert to Project" actions
+    so that patterns can create real, persistent objects.
+    """
+
+    __tablename__ = "projects"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
+    )
+
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Optional: which detected pattern created this project
+    source_pattern_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    __table_args__ = (
+        Index("ix_projects_name", "name"),
+        Index("ix_projects_created_at", "created_at"),
+    )
+
+
 class DetectedPattern(Base):
     """Detected patterns from conversation analysis.
     
@@ -429,3 +459,34 @@ class DetectedPattern(Base):
     def conversation_ids(self, value: list[str]):
         import json
         self.conversation_ids_json = json.dumps(value)
+
+
+class DailyPriority(Base):
+    """A single priority for a given day (Today's 3)."""
+
+    __tablename__ = "daily_priorities"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
+    )
+
+    date: Mapped[date] = mapped_column(Date, nullable=False)
+
+    # 1, 2, or 3
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+
+    completed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # manual, suggested, carryover
+    source: Mapped[str] = mapped_column(String(20), default="manual", nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_daily_priorities_date", "date"),
+        Index("ix_daily_priorities_date_position", "date", "position", unique=True),
+        Index("ix_daily_priorities_created_at", "created_at"),
+    )

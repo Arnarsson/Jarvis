@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from jarvis_server.db.base import Base
 
 # Import all models to register with Base.metadata for autogenerate
-from jarvis_server.db.models import Capture, ConversationRecord  # noqa: F401
+from jarvis_server.db.models import Capture, ConversationRecord, DailyPriority  # noqa: F401
 from jarvis_server.calendar.models import CalendarEvent, Meeting, SyncState  # noqa: F401
 from jarvis_server.email.models import EmailMessage, EmailSyncState  # noqa: F401
 
