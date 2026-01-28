@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { apiGet } from '../../api/client.ts'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton.tsx'
@@ -30,6 +31,7 @@ async function fetchCategoryCounts(): Promise<CategoryCountsResponse> {
 }
 
 export function Communications() {
+  const navigate = useNavigate()
   const { data: auth } = useQuery({
     queryKey: ['email', 'auth'],
     queryFn: fetchEmailAuth,
@@ -58,7 +60,10 @@ export function Communications() {
         </p>
       ) : (
         <div className="space-y-0">
-          <div className="flex items-center justify-between py-3.5 border-b border-border/50">
+          <div
+            onClick={() => navigate('/comms?filter=priority')}
+            className="flex items-center justify-between py-3.5 border-b border-border/50 cursor-pointer hover:bg-surface/30 transition-colors rounded px-2 -mx-2"
+          >
             <div>
               <p className="text-[14px] text-text-primary">Priority Unread</p>
               <p className="text-[11px] text-text-secondary mt-0.5">
@@ -69,7 +74,10 @@ export function Communications() {
               {priorityCount?.unread ?? 0}
             </span>
           </div>
-          <div className="flex items-center justify-between py-3.5">
+          <div
+            onClick={() => navigate('/comms')}
+            className="flex items-center justify-between py-3.5 cursor-pointer hover:bg-surface/30 transition-colors rounded px-2 -mx-2"
+          >
             <div>
               <p className="text-[14px] text-text-primary">Priority Threads</p>
               <p className="text-[11px] text-text-secondary mt-0.5">

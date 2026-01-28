@@ -4,7 +4,7 @@ import { apiGet, apiPost } from '../api/client.ts'
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton.tsx'
 import { DecisionBatcher } from '../components/tasks/DecisionBatcher.tsx'
 
-// --- Types ---
+// ── Types ────────────────────────────────────────────────────────────────────
 
 interface WorkflowSuggestion {
   id: string
@@ -29,6 +29,12 @@ interface WorkflowPattern {
   status: string
   confidence: number
   trust_tier: 'observe' | 'suggest' | 'auto'
+  pattern_type: string
+  frequency_count: number
+  is_active: boolean
+  total_executions: number
+  last_seen: string
+  created_at: string
 }
 
 interface PatternsResponse {
@@ -44,6 +50,15 @@ interface WorkflowExecution {
   completed_at?: string
   result?: string
   error?: string
+  user_approved?: boolean
+  was_correct?: boolean | null
+  actions_result?: {
+    actions: Array<{
+      success: boolean
+      action_type: string
+      message: string
+    }>
+  }
 }
 
 interface ExecutionsResponse {
@@ -51,204 +66,265 @@ interface ExecutionsResponse {
   total?: number
 }
 
-// --- Tabs ---
+interface AnalysisCandidate {
+  pattern: {
+    name: string
+    description: string
+    pattern_type: string
+    trigger_conditions: {
+      type: string
+      keywords?: string[]
+    }
+    actions: Array<{
+      type: string
+      message: string
+    }>
+  }
+  confidence: number
+  evidence_count: number
+}
 
-type Tab = 'pending' | 'executions' | 'patterns'
-type PatternFilter = 'all' | 'active' | 'suspended'
+interface AnalysisResponse {
+  analyzed_hours: number
+  candidates_found: number
+  candidates: AnalysisCandidate[]
+}
 
-// --- Confidence bar ---
+// ── Tabs ─────────────────────────────────────────────────────────────────────
 
-function ConfidenceBar({ confidence }: { confidence: number }) {
-  const pct = Math.round(confidence * 100)
+type Tab = 'overview' | 'patterns' | 'executions' | 'discover'
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+const TIER_CONFIG = {
+  observe: { label: 'OBSERVE', color: 'text-text-muted', border: 'border-border/50', bg: 'bg-border/20', icon: '👁️', desc: 'Watching silently' },
+  suggest: { label: 'SUGGEST', color: 'text-blue-400', border: 'border-blue-500/30', bg: 'bg-blue-500/10', icon: '💡', desc: 'Will ask before acting' },
+  auto: { label: 'AUTO', color: 'text-emerald-400', border: 'border-emerald-500/30', bg: 'bg-emerald-500/10', icon: '⚡', desc: 'Runs automatically' },
+} as const
+
+const PATTERN_TYPE_ICONS: Record<string, string> = {
+  TIME_BASED: '🕐',
+  TRIGGER_RESPONSE: '🔗',
+  REPETITIVE_ACTION: '🔄',
+  CONTEXT_SWITCH: '🔀',
+}
+
+function timeAgo(ts: string): string {
+  const ms = Date.now() - new Date(ts).getTime()
+  const mins = Math.floor(ms / 60_000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  return `${days}d ago`
+}
+
+function formatTimestamp(ts: string): string {
+  try {
+    return new Date(ts).toLocaleString('en-GB', {
+      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
+    })
+  } catch {
+    return ts
+  }
+}
+
+// ── Overview Tab ─────────────────────────────────────────────────────────────
+
+function OverviewTab({ patterns, executions, suggestions, onNavigate }: {
+  patterns: WorkflowPattern[]
+  executions: WorkflowExecution[]
+  suggestions: WorkflowSuggestion[]
+  onNavigate: (tab: Tab) => void
+}) {
+  const autoPatterns = patterns.filter(p => p.trust_tier === 'auto' && p.is_active)
+  const suggestPatterns = patterns.filter(p => p.trust_tier === 'suggest' && p.is_active)
+  const observePatterns = patterns.filter(p => p.trust_tier === 'observe' && p.is_active)
+  const recentExecs = executions.slice(0, 5)
+  const completedExecs = executions.filter(e => e.status === 'completed')
+  const failedExecs = executions.filter(e => e.status === 'failed')
+
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 bg-border/50 h-1.5 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all ${
-            pct >= 80 ? 'bg-success' : pct >= 50 ? 'bg-warning' : 'bg-accent'
-          }`}
-          style={{ width: `${pct}%` }}
-        />
+    <div className="space-y-8">
+      {/* Stats row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="border border-border/40 rounded-lg p-4">
+          <p className="font-mono text-[10px] tracking-wider text-text-muted uppercase">PATTERNS</p>
+          <p className="text-2xl font-bold text-text-primary mt-1">{patterns.length}</p>
+          <p className="text-[11px] text-text-muted mt-0.5">{autoPatterns.length} auto · {suggestPatterns.length} suggest</p>
+        </div>
+        <div className="border border-border/40 rounded-lg p-4">
+          <p className="font-mono text-[10px] tracking-wider text-text-muted uppercase">EXECUTIONS</p>
+          <p className="text-2xl font-bold text-text-primary mt-1">{executions.length}</p>
+          <p className="text-[11px] text-text-muted mt-0.5">{completedExecs.length} completed · {failedExecs.length} failed</p>
+        </div>
+        <div className="border border-border/40 rounded-lg p-4">
+          <p className="font-mono text-[10px] tracking-wider text-text-muted uppercase">PENDING</p>
+          <p className="text-2xl font-bold text-text-primary mt-1">{suggestions.length}</p>
+          <p className="text-[11px] text-text-muted mt-0.5">awaiting approval</p>
+        </div>
+        <div className="border border-border/40 rounded-lg p-4">
+          <p className="font-mono text-[10px] tracking-wider text-text-muted uppercase">TRUST</p>
+          <div className="flex items-center gap-1.5 mt-2">
+            <div className="flex-1 bg-border/30 h-2 rounded-full overflow-hidden flex">
+              {autoPatterns.length > 0 && (
+                <div className="h-full bg-emerald-500" style={{ width: `${(autoPatterns.length / Math.max(patterns.length, 1)) * 100}%` }} />
+              )}
+              {suggestPatterns.length > 0 && (
+                <div className="h-full bg-blue-500" style={{ width: `${(suggestPatterns.length / Math.max(patterns.length, 1)) * 100}%` }} />
+              )}
+              {observePatterns.length > 0 && (
+                <div className="h-full bg-zinc-600" style={{ width: `${(observePatterns.length / Math.max(patterns.length, 1)) * 100}%` }} />
+              )}
+            </div>
+          </div>
+          <p className="text-[11px] text-text-muted mt-1">
+            <span className="text-emerald-400">⚡{autoPatterns.length}</span>
+            {' · '}
+            <span className="text-blue-400">💡{suggestPatterns.length}</span>
+            {' · '}
+            <span className="text-text-muted">👁️{observePatterns.length}</span>
+          </p>
+        </div>
       </div>
-      <span className="font-mono text-[11px] text-text-secondary shrink-0">
-        {pct}%
-      </span>
+
+      {/* Pending suggestions */}
+      {suggestions.length > 0 && (
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-mono text-[11px] tracking-widest text-text-muted uppercase">
+              ⚠️ PENDING DECISIONS
+            </h3>
+            <button onClick={() => onNavigate('patterns')} className="font-mono text-[10px] text-accent hover:underline">
+              VIEW ALL →
+            </button>
+          </div>
+          <PendingSuggestions suggestions={suggestions} />
+        </section>
+      )}
+
+      {/* Active automations */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-mono text-[11px] tracking-widest text-text-muted uppercase">
+            ACTIVE AUTOMATIONS
+          </h3>
+          <button onClick={() => onNavigate('patterns')} className="font-mono text-[10px] text-accent hover:underline">
+            MANAGE →
+          </button>
+        </div>
+        {patterns.length === 0 ? (
+          <div className="border border-border/30 rounded-lg p-6 text-center">
+            <div className="text-3xl mb-3">🔍</div>
+            <p className="text-sm font-mono text-text-secondary">No patterns detected yet</p>
+            <p className="text-xs font-mono text-text-muted mt-1">Jarvis learns from your screen activity and suggests automations</p>
+            <button
+              onClick={() => onNavigate('discover')}
+              className="mt-4 font-mono text-[11px] tracking-wider px-4 py-2 border border-accent text-accent hover:bg-accent/10 transition-colors"
+            >
+              SCAN FOR PATTERNS
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {patterns.filter(p => p.is_active).map(pattern => (
+              <PatternCard key={pattern.id} pattern={pattern} compact />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Recent activity */}
+      {recentExecs.length > 0 && (
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-mono text-[11px] tracking-widest text-text-muted uppercase">
+              RECENT ACTIVITY
+            </h3>
+            <button onClick={() => onNavigate('executions')} className="font-mono text-[10px] text-accent hover:underline">
+              ALL EXECUTIONS →
+            </button>
+          </div>
+          <div className="space-y-1">
+            {recentExecs.map(exec => (
+              <div key={exec.id} className="flex items-center gap-3 py-2.5 px-3 border border-border/20 rounded">
+                <span className={`h-2 w-2 rounded-full shrink-0 ${
+                  exec.status === 'completed' ? 'bg-emerald-400' :
+                  exec.status === 'failed' ? 'bg-red-400' :
+                  exec.status === 'running' ? 'bg-blue-400 animate-pulse' : 'bg-zinc-500'
+                }`} />
+                <span className="text-[13px] text-text-primary flex-1 truncate">
+                  {exec.pattern_name || exec.pattern_id.slice(0, 8)}
+                </span>
+                {exec.actions_result?.actions?.[0]?.message && (
+                  <span className="text-[11px] text-text-muted truncate max-w-[200px] hidden sm:block">
+                    {exec.actions_result.actions[0].message}
+                  </span>
+                )}
+                <span className="font-mono text-[10px] text-text-muted shrink-0">
+                  {timeAgo(exec.started_at)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   )
 }
 
-// --- Status helpers ---
+// ── Pending Suggestions ──────────────────────────────────────────────────────
 
-function statusBgClass(status: string): string {
-  switch (status.toLowerCase()) {
-    case 'active':
-      return 'border-success/40 text-success bg-success/10'
-    case 'suspended':
-      return 'border-warning/40 text-warning bg-warning/10'
-    default:
-      return 'border-border text-text-secondary bg-border/30'
-  }
-}
-
-
-function tierBgClass(tier: string): string {
-  switch (tier.toLowerCase()) {
-    case 'auto':
-      return 'border-success/40 bg-success/10 text-success'
-    case 'suggest':
-      return 'border-accent/40 bg-accent/10 text-accent'
-    case 'observe':
-      return 'border-border bg-border/30 text-text-secondary'
-    default:
-      return 'border-border bg-border/30 text-text-secondary'
-  }
-}
-
-// --- Pending Tab ---
-
-function PendingTab() {
+function PendingSuggestions({ suggestions }: { suggestions: WorkflowSuggestion[] }) {
   const queryClient = useQueryClient()
-  const [actionFeedback, setActionFeedback] = useState<{
-    id: string
-    type: 'success' | 'error'
-    message: string
-  } | null>(null)
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['workflow', 'suggestions'],
-    queryFn: async () => {
-      try {
-        const res = await apiGet<SuggestionsResponse>('/api/workflow/suggestions')
-        return res.suggestions
-      } catch {
-        return []
-      }
-    },
-  })
 
   const approveMutation = useMutation({
-    mutationFn: (id: string) =>
-      apiPost(`/api/workflow/suggestions/${id}/approve`),
-    onSuccess: (_data, id) => {
-      setActionFeedback({ id, type: 'success', message: 'Approved' })
-      queryClient.invalidateQueries({ queryKey: ['workflow', 'suggestions'] })
-      queryClient.invalidateQueries({ queryKey: ['workflow', 'patterns'] })
-      queryClient.invalidateQueries({ queryKey: ['workflow', 'executions'] })
-      setTimeout(() => setActionFeedback(null), 2000)
-    },
-    onError: (err, id) => {
-      setActionFeedback({
-        id,
-        type: 'error',
-        message: err instanceof Error ? err.message : 'Approve failed',
-      })
-      setTimeout(() => setActionFeedback(null), 4000)
+    mutationFn: (id: string) => apiPost(`/api/workflow/suggestions/${id}/approve`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workflow'] })
     },
   })
 
   const rejectMutation = useMutation({
-    mutationFn: (id: string) =>
-      apiPost(`/api/workflow/suggestions/${id}/reject`),
-    onSuccess: (_data, id) => {
-      setActionFeedback({ id, type: 'success', message: 'Rejected' })
-      queryClient.invalidateQueries({ queryKey: ['workflow', 'suggestions'] })
-      setTimeout(() => setActionFeedback(null), 2000)
-    },
-    onError: (err, id) => {
-      setActionFeedback({
-        id,
-        type: 'error',
-        message: err instanceof Error ? err.message : 'Reject failed',
-      })
-      setTimeout(() => setActionFeedback(null), 4000)
+    mutationFn: (id: string) => apiPost(`/api/workflow/suggestions/${id}/reject`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workflow'] })
     },
   })
 
-  if (isLoading) {
-    return <LoadingSkeleton lines={4} />
-  }
-
-  if (!data || data.length === 0) {
-    return (
-      <p className="text-sm text-text-secondary py-6">
-        No pending decisions &mdash; all clear
-      </p>
-    )
-  }
-
   return (
-    <div className="space-y-0">
-      {data.map((suggestion) => (
-        <div
-          key={suggestion.id}
-          className="py-5 border-b border-border/50 last:border-b-0"
-        >
-          {/* Name + description */}
-          <p className="text-[15px] text-text-primary font-medium">
-            {suggestion.name}
-          </p>
-          <p className="text-[12px] text-text-secondary mt-1">
-            {suggestion.description || suggestion.pattern_type}
-          </p>
-
-          {/* Confidence bar */}
-          <div className="mt-3">
-            <ConfidenceBar confidence={suggestion.confidence} />
-          </div>
-
-          {/* Trigger + Action details */}
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
-            <div>
-              <span className="font-mono text-[10px] tracking-wider text-text-secondary uppercase">
-                Trigger
-              </span>
-              <p className="text-[13px] text-text-primary mt-0.5">
-                {suggestion.trigger_description}
-              </p>
+    <div className="space-y-3">
+      {suggestions.map(s => (
+        <div key={s.id} className="border border-amber-500/20 bg-amber-500/5 rounded-lg p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-[14px] text-text-primary font-medium">{s.name}</p>
+              <p className="text-[12px] text-text-secondary mt-1">{s.description || s.pattern_type}</p>
+              {s.trigger_description && (
+                <p className="text-[11px] text-text-muted mt-2">
+                  <span className="text-text-secondary">When:</span> {s.trigger_description}
+                  {' → '}
+                  <span className="text-text-secondary">Then:</span> {s.action_description}
+                </p>
+              )}
             </div>
-            <div>
-              <span className="font-mono text-[10px] tracking-wider text-text-secondary uppercase">
-                Action
-              </span>
-              <p className="text-[13px] text-text-primary mt-0.5">
-                {suggestion.action_description}
-              </p>
-            </div>
-          </div>
-
-          {/* Action buttons */}
-          <div className="mt-4 flex flex-col sm:flex-row items-start gap-2">
-            <button
-              type="button"
-              onClick={() => approveMutation.mutate(suggestion.id)}
-              disabled={approveMutation.isPending || rejectMutation.isPending}
-              className="font-mono text-[12px] tracking-wider font-bold px-4 py-2 border border-accent text-accent hover:bg-accent/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {approveMutation.isPending && approveMutation.variables === suggestion.id
-                ? 'APPROVING...'
-                : 'APPROVE'}
-            </button>
-            <button
-              type="button"
-              onClick={() => rejectMutation.mutate(suggestion.id)}
-              disabled={rejectMutation.isPending || approveMutation.isPending}
-              className="font-mono text-[12px] tracking-wider font-bold px-4 py-2 border border-border text-text-secondary hover:text-text-primary hover:border-border-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {rejectMutation.isPending && rejectMutation.variables === suggestion.id
-                ? 'REJECTING...'
-                : 'REJECT'}
-            </button>
-            {actionFeedback?.id === suggestion.id && (
-              <span
-                className={`font-mono text-[11px] tracking-wider px-3 py-2 ${
-                  actionFeedback.type === 'success'
-                    ? 'text-success'
-                    : 'text-accent'
-                }`}
+            <div className="flex gap-2 shrink-0">
+              <button
+                onClick={() => approveMutation.mutate(s.id)}
+                disabled={approveMutation.isPending}
+                className="font-mono text-[11px] tracking-wider px-3 py-1.5 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 transition-colors"
               >
-                {actionFeedback.message}
-              </span>
-            )}
+                APPROVE
+              </button>
+              <button
+                onClick={() => rejectMutation.mutate(s.id)}
+                disabled={rejectMutation.isPending}
+                className="font-mono text-[11px] tracking-wider px-3 py-1.5 border border-border text-text-muted hover:text-text-primary transition-colors"
+              >
+                REJECT
+              </button>
+            </div>
           </div>
         </div>
       ))}
@@ -256,168 +332,294 @@ function PendingTab() {
   )
 }
 
-// --- Executions Tab ---
+// ── Pattern Card ─────────────────────────────────────────────────────────────
 
-function executionStatusClass(status: string): string {
-  switch (status.toLowerCase()) {
-    case 'completed':
-      return 'border-success/40 text-success bg-success/10'
-    case 'running':
-    case 'pending':
-      return 'border-accent/40 text-accent bg-accent/10'
-    case 'failed':
-      return 'border-red-500/40 text-red-400 bg-red-500/10'
-    case 'cancelled':
-      return 'border-warning/40 text-warning bg-warning/10'
-    default:
-      return 'border-border text-text-secondary bg-border/30'
-  }
-}
+function PatternCard({ pattern, compact = false }: { pattern: WorkflowPattern; compact?: boolean }) {
+  const [expanded, setExpanded] = useState(false)
+  const queryClient = useQueryClient()
+  const tier = TIER_CONFIG[pattern.trust_tier] || TIER_CONFIG.observe
+  const typeIcon = PATTERN_TYPE_ICONS[pattern.pattern_type] || '📋'
 
-function formatTimestamp(ts: string): string {
-  try {
-    const d = new Date(ts)
-    return d.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    })
-  } catch {
-    return ts
-  }
-}
-
-function ExecutionsTab() {
-  const [expandedId, setExpandedId] = useState<string | null>(null)
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['workflow', 'executions'],
-    queryFn: async () => {
-      try {
-        const res = await apiGet<ExecutionsResponse>('/api/workflow/executions')
-        return res.executions ?? []
-      } catch {
-        return []
-      }
-    },
-    refetchInterval: 10_000, // poll for running executions
+  const promoteMutation = useMutation({
+    mutationFn: ({ id, newTier }: { id: string; newTier: string }) =>
+      apiPost(`/api/workflow/patterns/${id}/promote?tier=${encodeURIComponent(newTier)}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['workflow'] }),
   })
 
-  // Fetch detail for expanded execution
-  const { data: detail } = useQuery({
-    queryKey: ['workflow', 'executions', expandedId],
-    queryFn: async () => {
-      if (!expandedId) return null
-      try {
-        return await apiGet<WorkflowExecution>(
-          `/api/workflow/executions/${expandedId}`
-        )
-      } catch {
-        return null
-      }
-    },
-    enabled: !!expandedId,
-    refetchInterval: (query) => {
-      const d = query.state.data
-      if (d && (d.status === 'running' || d.status === 'pending')) return 3_000
-      return false
-    },
+  const suspendMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiPost(`/api/workflow/patterns/${id}/suspend?reason=${encodeURIComponent('Suspended from dashboard')}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['workflow'] }),
   })
 
-  if (isLoading) return <LoadingSkeleton lines={4} />
+  const nextTier = pattern.trust_tier === 'observe' ? 'suggest' : pattern.trust_tier === 'suggest' ? 'auto' : null
 
-  if (!data || data.length === 0) {
+  if (compact) {
     return (
-      <p className="text-sm text-text-secondary py-6">
-        No executions yet &mdash; approve a suggestion to trigger one
-      </p>
+      <div
+        className="flex items-center gap-3 py-3 px-4 border border-border/30 rounded-lg hover:border-border/60 cursor-pointer transition-colors"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <span className="text-lg shrink-0">{typeIcon}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] text-text-primary truncate">{pattern.name}</p>
+          {pattern.description && !expanded && (
+            <p className="text-[11px] text-text-muted truncate">{pattern.description}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="font-mono text-[10px] text-text-muted">
+            {pattern.frequency_count}× seen
+          </span>
+          <span className={`font-mono text-[9px] tracking-wider px-2 py-0.5 rounded-full border ${tier.border} ${tier.bg} ${tier.color}`}>
+            {tier.icon} {tier.label}
+          </span>
+        </div>
+        {expanded && (
+          <div className="absolute right-4 flex gap-1.5">
+            {nextTier && (
+              <button
+                onClick={(e) => { e.stopPropagation(); promoteMutation.mutate({ id: pattern.id, newTier: nextTier! }) }}
+                className="font-mono text-[10px] px-2 py-1 border border-accent/40 text-accent hover:bg-accent/10 rounded"
+              >
+                PROMOTE
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     )
   }
 
   return (
-    <div className="space-y-0">
-      {data.map((exec) => {
-        const isExpanded = expandedId === exec.id
-        const displayExec = isExpanded && detail ? detail : exec
-        const isLive =
-          displayExec.status === 'running' || displayExec.status === 'pending'
+    <div className="border border-border/40 rounded-lg p-5 hover:border-border/60 transition-colors">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <span className="text-xl mt-0.5">{typeIcon}</span>
+          <div>
+            <p className="text-[15px] text-text-primary font-medium">{pattern.name}</p>
+            {pattern.description && (
+              <p className="text-[12px] text-text-secondary mt-1">{pattern.description}</p>
+            )}
+          </div>
+        </div>
+        <span className={`font-mono text-[10px] tracking-wider px-2.5 py-1 rounded-full border shrink-0 ${tier.border} ${tier.bg} ${tier.color}`}>
+          {tier.icon} {tier.label}
+        </span>
+      </div>
 
+      {/* Meta */}
+      <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div>
+          <p className="font-mono text-[9px] tracking-wider text-text-muted uppercase">TYPE</p>
+          <p className="text-[12px] text-text-secondary mt-0.5">{pattern.pattern_type.replace(/_/g, ' ')}</p>
+        </div>
+        <div>
+          <p className="font-mono text-[9px] tracking-wider text-text-muted uppercase">FREQUENCY</p>
+          <p className="text-[12px] text-text-secondary mt-0.5">{pattern.frequency_count}× detected</p>
+        </div>
+        <div>
+          <p className="font-mono text-[9px] tracking-wider text-text-muted uppercase">EXECUTIONS</p>
+          <p className="text-[12px] text-text-secondary mt-0.5">{pattern.total_executions}</p>
+        </div>
+        <div>
+          <p className="font-mono text-[9px] tracking-wider text-text-muted uppercase">LAST SEEN</p>
+          <p className="text-[12px] text-text-secondary mt-0.5">{timeAgo(pattern.last_seen)}</p>
+        </div>
+      </div>
+
+      {/* Trust progression */}
+      <div className="mt-4">
+        <p className="font-mono text-[9px] tracking-wider text-text-muted uppercase mb-2">TRUST PROGRESSION</p>
+        <div className="flex items-center gap-1">
+          {(['observe', 'suggest', 'auto'] as const).map((t, i) => {
+            const cfg = TIER_CONFIG[t]
+            const isActive = t === pattern.trust_tier
+            const isPast = ['observe', 'suggest', 'auto'].indexOf(t) < ['observe', 'suggest', 'auto'].indexOf(pattern.trust_tier)
+            return (
+              <div key={t} className="flex items-center gap-1">
+                {i > 0 && <div className={`w-6 h-px ${isPast || isActive ? 'bg-emerald-500/50' : 'bg-border/30'}`} />}
+                <div className={`font-mono text-[9px] tracking-wider px-2 py-1 rounded border ${
+                  isActive ? `${cfg.border} ${cfg.bg} ${cfg.color} font-bold` :
+                  isPast ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-400/50' :
+                  'border-border/20 text-text-muted/30'
+                }`}>
+                  {cfg.icon} {cfg.label}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="mt-4 flex gap-2">
+        {nextTier && (
+          <button
+            onClick={() => promoteMutation.mutate({ id: pattern.id, newTier: nextTier! })}
+            disabled={promoteMutation.isPending}
+            className="font-mono text-[11px] tracking-wider px-4 py-2 border border-accent text-accent hover:bg-accent/10 transition-colors disabled:opacity-50"
+          >
+            PROMOTE TO {nextTier.toUpperCase()}
+          </button>
+        )}
+        {pattern.is_active && (
+          <button
+            onClick={() => suspendMutation.mutate(pattern.id)}
+            disabled={suspendMutation.isPending}
+            className="font-mono text-[11px] tracking-wider px-4 py-2 border border-border text-text-muted hover:text-warning hover:border-warning/40 transition-colors disabled:opacity-50"
+          >
+            SUSPEND
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Patterns Tab ─────────────────────────────────────────────────────────────
+
+function PatternsTab({ patterns }: { patterns: WorkflowPattern[] }) {
+  const [filter, setFilter] = useState<'all' | 'auto' | 'suggest' | 'observe'>('all')
+
+  const filtered = filter === 'all' ? patterns : patterns.filter(p => p.trust_tier === filter)
+
+  return (
+    <div>
+      {/* Filter row */}
+      <div className="flex gap-2 mb-5">
+        {(['all', 'auto', 'suggest', 'observe'] as const).map(f => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`font-mono text-[11px] tracking-wider px-3 py-1.5 border rounded transition-colors ${
+              filter === f
+                ? 'border-accent text-accent bg-accent/10'
+                : 'border-border/40 text-text-muted hover:text-text-primary hover:border-border'
+            }`}
+          >
+            {f === 'all' ? 'ALL' : TIER_CONFIG[f].icon + ' ' + f.toUpperCase()}
+            <span className="ml-1.5 text-text-muted">{f === 'all' ? patterns.length : patterns.filter(p => p.trust_tier === f).length}</span>
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="border border-border/30 rounded-lg p-8 text-center">
+          <p className="text-sm font-mono text-text-secondary">No patterns in this tier</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map(p => <PatternCard key={p.id} pattern={p} />)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Executions Tab ───────────────────────────────────────────────────────────
+
+function ExecutionsTab({ executions }: { executions: WorkflowExecution[] }) {
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const queryClient = useQueryClient()
+
+  const feedbackMutation = useMutation({
+    mutationFn: ({ id, correct }: { id: string; correct: boolean }) =>
+      apiPost(`/api/workflow/executions/${id}/feedback`, { was_correct: correct }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['workflow'] }),
+  })
+
+  if (executions.length === 0) {
+    return (
+      <div className="border border-border/30 rounded-lg p-8 text-center">
+        <div className="text-3xl mb-3">📋</div>
+        <p className="text-sm font-mono text-text-secondary">No executions yet</p>
+        <p className="text-xs font-mono text-text-muted mt-1">Automations will appear here when patterns trigger</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-1">
+      {executions.map(exec => {
+        const isExpanded = expandedId === exec.id
         return (
           <div
             key={exec.id}
-            className="py-4 border-b border-border/50 last:border-b-0 cursor-pointer"
-            onClick={() => setExpandedId(isExpanded ? null : exec.id)}
+            className="border border-border/30 rounded-lg overflow-hidden hover:border-border/50 transition-colors"
           >
-            {/* Header row */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div className="flex items-center gap-3">
-                <p className="text-[15px] text-text-primary font-medium">
-                  {exec.pattern_name || exec.pattern_id}
-                </p>
-                {isLive && (
-                  <span className="inline-block w-2 h-2 rounded-full bg-accent animate-pulse" />
-                )}
-              </div>
-              <div className="flex items-center gap-3 shrink-0">
-                <span
-                  className={`inline-flex items-center font-mono text-[10px] tracking-wider px-2.5 py-1 border ${executionStatusClass(displayExec.status)}`}
-                >
-                  {displayExec.status.toUpperCase()}
-                </span>
-                <span className="font-mono text-[11px] text-text-secondary">
-                  {formatTimestamp(exec.started_at)}
-                </span>
-              </div>
+            <div
+              className="flex items-center gap-3 px-4 py-3 cursor-pointer"
+              onClick={() => setExpandedId(isExpanded ? null : exec.id)}
+            >
+              <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${
+                exec.status === 'completed' ? 'bg-emerald-400' :
+                exec.status === 'failed' ? 'bg-red-400' :
+                exec.status === 'running' ? 'bg-blue-400 animate-pulse' :
+                exec.status === 'pending' ? 'bg-amber-400 animate-pulse' : 'bg-zinc-500'
+              }`} />
+              <span className="text-[13px] text-text-primary flex-1 truncate font-medium">
+                {exec.pattern_name || exec.pattern_id.slice(0, 8)}
+              </span>
+              <span className={`font-mono text-[10px] tracking-wider px-2 py-0.5 rounded border ${
+                exec.status === 'completed' ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10' :
+                exec.status === 'failed' ? 'border-red-500/30 text-red-400 bg-red-500/10' :
+                'border-border/40 text-text-muted'
+              }`}>
+                {exec.status.toUpperCase()}
+              </span>
+              <span className="font-mono text-[10px] text-text-muted shrink-0">
+                {formatTimestamp(exec.started_at)}
+              </span>
             </div>
 
-            {/* Expanded detail */}
             {isExpanded && (
-              <div className="mt-3 pl-2 space-y-2 text-[13px]">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
-                  <div>
-                    <span className="font-mono text-[10px] tracking-wider text-text-secondary uppercase">
-                      Started
+              <div className="px-4 pb-4 border-t border-border/20 pt-3 space-y-3">
+                {/* Action results */}
+                {exec.actions_result?.actions?.map((action, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <span className={`text-xs mt-0.5 ${action.success ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {action.success ? '✓' : '✗'}
                     </span>
-                    <p className="text-text-primary mt-0.5">
-                      {formatTimestamp(displayExec.started_at)}
-                    </p>
-                  </div>
-                  {displayExec.completed_at && (
                     <div>
-                      <span className="font-mono text-[10px] tracking-wider text-text-secondary uppercase">
-                        Completed
-                      </span>
-                      <p className="text-text-primary mt-0.5">
-                        {formatTimestamp(displayExec.completed_at)}
-                      </p>
+                      <span className="font-mono text-[10px] text-text-muted uppercase">{action.action_type}</span>
+                      <p className="text-[12px] text-text-secondary">{action.message}</p>
                     </div>
-                  )}
-                </div>
-                {displayExec.result && (
-                  <div>
-                    <span className="font-mono text-[10px] tracking-wider text-text-secondary uppercase">
-                      Result
-                    </span>
-                    <p className="text-text-primary mt-0.5 whitespace-pre-wrap bg-surface/50 border border-border/30 rounded px-3 py-2 font-mono text-[12px]">
-                      {displayExec.result}
-                    </p>
+                  </div>
+                ))}
+
+                {exec.error && (
+                  <div className="bg-red-500/5 border border-red-500/20 rounded px-3 py-2">
+                    <p className="font-mono text-[11px] text-red-400">{exec.error}</p>
                   </div>
                 )}
-                {displayExec.error && (
-                  <div>
-                    <span className="font-mono text-[10px] tracking-wider text-red-400 uppercase">
-                      Error
-                    </span>
-                    <p className="text-red-400 mt-0.5 whitespace-pre-wrap bg-red-500/5 border border-red-500/20 rounded px-3 py-2 font-mono text-[12px]">
-                      {displayExec.error}
-                    </p>
+
+                {/* Feedback */}
+                {exec.status === 'completed' && exec.was_correct === null && (
+                  <div className="flex items-center gap-3 pt-2">
+                    <span className="text-[11px] text-text-muted">Was this correct?</span>
+                    <button
+                      onClick={() => feedbackMutation.mutate({ id: exec.id, correct: true })}
+                      className="font-mono text-[10px] px-2.5 py-1 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 rounded"
+                    >
+                      👍 YES
+                    </button>
+                    <button
+                      onClick={() => feedbackMutation.mutate({ id: exec.id, correct: false })}
+                      className="font-mono text-[10px] px-2.5 py-1 border border-red-500/30 text-red-400 hover:bg-red-500/10 rounded"
+                    >
+                      👎 NO
+                    </button>
                   </div>
                 )}
-                <p className="font-mono text-[10px] text-text-muted">
-                  ID: {exec.id}
-                </p>
+                {exec.was_correct !== null && exec.was_correct !== undefined && (
+                  <p className="text-[11px] text-text-muted">
+                    Feedback: {exec.was_correct ? '👍 Correct' : '👎 Incorrect'}
+                  </p>
+                )}
+
+                <p className="font-mono text-[9px] text-text-muted/50">ID: {exec.id}</p>
               </div>
             )}
           </div>
@@ -427,217 +629,228 @@ function ExecutionsTab() {
   )
 }
 
-// --- Patterns Tab ---
+// ── Discover Tab ─────────────────────────────────────────────────────────────
 
-function PatternsTab() {
-  const [filter, setFilter] = useState<PatternFilter>('all')
-  const queryClient = useQueryClient()
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['workflow', 'patterns', filter],
+function DiscoverTab() {
+  const { data, isLoading, refetch, isFetching } = useQuery<AnalysisResponse>({
+    queryKey: ['workflow', 'analyze'],
     queryFn: async () => {
       try {
-        const params = new URLSearchParams()
-        if (filter === 'active') {
-          params.set('active_only', 'true')
-        }
-        const qs = params.toString()
-        const res = await apiGet<PatternsResponse>(
-          `/api/workflow/patterns${qs ? `?${qs}` : ''}`
-        )
-        return res.patterns
+        return await apiGet<AnalysisResponse>('/api/workflow/analyze')
       } catch {
-        return []
+        return { analyzed_hours: 0, candidates_found: 0, candidates: [] }
       }
     },
+    staleTime: 300_000, // 5 min
   })
-
-  const promoteMutation = useMutation({
-    mutationFn: ({ id, tier }: { id: string; tier: string }) =>
-      apiPost(`/api/workflow/patterns/${id}/promote?tier=${encodeURIComponent(tier)}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['workflow', 'patterns'] })
-    },
-  })
-
-  const suspendMutation = useMutation({
-    mutationFn: (id: string) =>
-      apiPost(`/api/workflow/patterns/${id}/suspend?reason=${encodeURIComponent('Suspended from dashboard')}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['workflow', 'patterns'] })
-    },
-  })
-
-  // Client-side filter for suspended (API may not support status param directly)
-  const filtered = (data ?? []).filter((p) => {
-    if (filter === 'suspended') return p.status.toLowerCase() === 'suspended'
-    return true
-  })
-
-  const nextTier = (current: string): string => {
-    switch (current.toLowerCase()) {
-      case 'observe':
-        return 'suggest'
-      case 'suggest':
-        return 'auto'
-      default:
-        return current
-    }
-  }
-
-  const filterButtons: { key: PatternFilter; label: string }[] = [
-    { key: 'all', label: 'ALL' },
-    { key: 'active', label: 'ACTIVE' },
-    { key: 'suspended', label: 'SUSPENDED' },
-  ]
 
   return (
-    <div>
-      {/* Filter row */}
-      <div className="flex gap-2 mb-4">
-        {filterButtons.map((btn) => (
-          <button
-            key={btn.key}
-            onClick={() => setFilter(btn.key)}
-            className={`font-mono text-[11px] tracking-wider px-3 py-1.5 border transition-colors ${
-              filter === btn.key
-                ? 'border-accent text-accent bg-accent/10'
-                : 'border-border text-text-secondary hover:text-text-primary hover:border-border-light'
-            }`}
-          >
-            {btn.label}
-          </button>
-        ))}
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-[13px] text-text-primary">
+            Pattern discovery scans your screen activity to find automatable workflows.
+          </p>
+          {data && (
+            <p className="text-[11px] text-text-muted mt-1">
+              Analyzed {data.analyzed_hours}h of activity · Found {data.candidates_found} candidate patterns
+            </p>
+          )}
+        </div>
+        <button
+          onClick={() => refetch()}
+          disabled={isFetching}
+          className="font-mono text-[11px] tracking-wider px-4 py-2 border border-accent text-accent hover:bg-accent/10 transition-colors disabled:opacity-50 shrink-0"
+        >
+          {isFetching ? 'SCANNING...' : 'SCAN NOW'}
+        </button>
       </div>
 
-      {isLoading ? (
-        <LoadingSkeleton lines={4} />
-      ) : filtered.length === 0 ? (
-        <p className="text-sm text-text-secondary py-6">
-          No workflow patterns detected yet
-        </p>
-      ) : (
-        <div className="space-y-0">
-          {filtered.map((pattern) => {
-            const isActive = pattern.status.toLowerCase() === 'active'
-            const isAuto = pattern.trust_tier.toLowerCase() === 'auto'
+      {isLoading && <LoadingSkeleton lines={6} />}
 
-            return (
-              <div
-                key={pattern.id}
-                className="py-5 border-b border-border/50 last:border-b-0"
-              >
-                {/* Name + badges row */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <p className="text-[15px] text-text-primary font-medium">
-                    {pattern.name}
-                  </p>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {/* Status badge */}
-                    <span
-                      className={`inline-flex items-center font-mono text-[10px] tracking-wider px-2.5 py-1 border ${statusBgClass(pattern.status)}`}
-                    >
-                      {pattern.status.toUpperCase()}
-                    </span>
-                    {/* Trust tier badge */}
-                    <span
-                      className={`inline-flex items-center font-mono text-[10px] tracking-wider px-2.5 py-1 border ${tierBgClass(pattern.trust_tier)}`}
-                    >
-                      {pattern.trust_tier.toUpperCase()}
-                    </span>
+      {/* Candidates */}
+      {data && data.candidates.length > 0 && (
+        <div className="space-y-3">
+          {data.candidates.slice(0, 10).map((candidate, i) => (
+            <div key={i} className="border border-border/40 rounded-lg p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span>{PATTERN_TYPE_ICONS[candidate.pattern.pattern_type] || '📋'}</span>
+                    <p className="text-[14px] text-text-primary font-medium truncate">
+                      {candidate.pattern.name}
+                    </p>
                   </div>
-                </div>
-
-                {/* Description */}
-                {pattern.description && (
                   <p className="text-[12px] text-text-secondary mt-1">
-                    {pattern.description}
+                    {candidate.pattern.description}
                   </p>
-                )}
-
-                {/* Confidence */}
-                <div className="mt-3 flex items-center gap-2">
-                  <span className="font-mono text-[10px] tracking-wider text-text-secondary uppercase">
-                    Confidence
-                  </span>
-                  <div className="flex-1 max-w-xs">
-                    <ConfidenceBar confidence={pattern.confidence} />
-                  </div>
                 </div>
-
-                {/* Action buttons */}
-                <div className="mt-4 flex flex-col sm:flex-row gap-2">
-                  {!isAuto && (
-                    <button
-                      onClick={() =>
-                        promoteMutation.mutate({
-                          id: pattern.id,
-                          tier: nextTier(pattern.trust_tier),
-                        })
-                      }
-                      disabled={promoteMutation.isPending}
-                      className="font-mono text-[12px] tracking-wider font-bold px-4 py-2 border border-accent text-accent hover:bg-accent/10 transition-colors disabled:opacity-50"
-                    >
-                      PROMOTE
-                    </button>
-                  )}
-                  {isActive && (
-                    <button
-                      onClick={() => suspendMutation.mutate(pattern.id)}
-                      disabled={suspendMutation.isPending}
-                      className="font-mono text-[12px] tracking-wider font-bold px-4 py-2 border border-warning/50 text-warning hover:bg-warning/10 transition-colors disabled:opacity-50"
-                    >
-                      SUSPEND
-                    </button>
-                  )}
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="font-mono text-[10px] text-text-muted">
+                    {Math.round(candidate.confidence * 100)}% confidence
+                  </span>
+                  <span className="font-mono text-[10px] text-text-muted">
+                    {candidate.evidence_count} evidence
+                  </span>
                 </div>
               </div>
-            )
-          })}
+
+              {/* Proposed action */}
+              {candidate.pattern.actions?.[0] && (
+                <div className="mt-3 bg-surface/50 border border-border/20 rounded px-3 py-2">
+                  <span className="font-mono text-[9px] tracking-wider text-text-muted uppercase">PROPOSED ACTION</span>
+                  <p className="text-[12px] text-text-secondary mt-0.5">
+                    {candidate.pattern.actions[0].message}
+                  </p>
+                </div>
+              )}
+
+              {/* Confidence bar */}
+              <div className="mt-3 flex items-center gap-2">
+                <div className="flex-1 bg-border/30 h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${
+                      candidate.confidence >= 0.8 ? 'bg-emerald-500' :
+                      candidate.confidence >= 0.5 ? 'bg-blue-500' : 'bg-amber-500'
+                    }`}
+                    style={{ width: `${Math.round(candidate.confidence * 100)}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
+
+      {data && data.candidates.length === 0 && !isLoading && (
+        <div className="border border-border/30 rounded-lg p-8 text-center">
+          <div className="text-3xl mb-3">🧘</div>
+          <p className="text-sm font-mono text-text-secondary">No new patterns found</p>
+          <p className="text-xs font-mono text-text-muted mt-1">Keep using your computer — Jarvis will detect patterns over time</p>
+        </div>
+      )}
+
+      {/* How it works */}
+      <div className="border border-border/20 rounded-lg p-5">
+        <h4 className="font-mono text-[11px] tracking-widest text-text-muted uppercase mb-3">HOW PATTERN DETECTION WORKS</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <p className="text-lg mb-1">👁️ Observe</p>
+            <p className="text-[12px] text-text-secondary">Jarvis watches your screen activity silently, building a model of your workflows</p>
+          </div>
+          <div>
+            <p className="text-lg mb-1">💡 Suggest</p>
+            <p className="text-[12px] text-text-secondary">When a pattern is confirmed, Jarvis suggests automations and asks for approval</p>
+          </div>
+          <div>
+            <p className="text-lg mb-1">⚡ Automate</p>
+            <p className="text-[12px] text-text-secondary">Trusted patterns run automatically — notifications, reminders, context switches</p>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
 
-// --- Main Page ---
+// ── Main Page ────────────────────────────────────────────────────────────────
 
 export function TasksPage() {
-  const [activeTab, setActiveTab] = useState<Tab>('pending')
+  const [activeTab, setActiveTab] = useState<Tab>('overview')
 
-  const tabs: { key: Tab; label: string }[] = [
-    { key: 'pending', label: 'PENDING' },
-    { key: 'executions', label: 'EXECUTIONS' },
-    { key: 'patterns', label: 'PATTERNS' },
+  // Fetch all data at page level for the overview
+  const { data: patternsData, isLoading: patternsLoading } = useQuery({
+    queryKey: ['workflow', 'patterns'],
+    queryFn: async () => {
+      try {
+        return (await apiGet<PatternsResponse>('/api/workflow/patterns')).patterns
+      } catch { return [] }
+    },
+  })
+
+  const { data: executionsData, isLoading: executionsLoading } = useQuery({
+    queryKey: ['workflow', 'executions'],
+    queryFn: async () => {
+      try {
+        return (await apiGet<ExecutionsResponse>('/api/workflow/executions')).executions ?? []
+      } catch { return [] }
+    },
+    refetchInterval: 10_000,
+  })
+
+  const { data: suggestionsData } = useQuery({
+    queryKey: ['workflow', 'suggestions'],
+    queryFn: async () => {
+      try {
+        return (await apiGet<SuggestionsResponse>('/api/workflow/suggestions')).suggestions
+      } catch { return [] }
+    },
+  })
+
+  const patterns = patternsData ?? []
+  const executions = executionsData ?? []
+  const suggestions = suggestionsData ?? []
+  const loading = patternsLoading || executionsLoading
+
+  const tabs: { key: Tab; label: string; count?: number }[] = [
+    { key: 'overview', label: 'OVERVIEW' },
+    { key: 'patterns', label: 'PATTERNS', count: patterns.length },
+    { key: 'executions', label: 'EXECUTIONS', count: executions.length },
+    { key: 'discover', label: 'DISCOVER' },
   ]
 
   return (
     <div>
       <DecisionBatcher />
 
-      <h3 className="section-title">TASKS</h3>
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="section-title">AUTOMATIONS</h2>
+        {suggestions.length > 0 && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+            <span className="font-mono text-[10px] text-amber-400 tracking-wider">
+              {suggestions.length} pending
+            </span>
+          </span>
+        )}
+      </div>
 
       {/* Tab navigation */}
-      <div className="flex gap-6 mb-6">
-        {tabs.map((tab) => (
+      <div className="flex gap-4 mb-6 overflow-x-auto">
+        {tabs.map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`font-mono text-[13px] tracking-wider pb-2 transition-colors ${
+            className={`font-mono text-[12px] tracking-wider pb-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${
               activeTab === tab.key
                 ? 'text-text-primary border-b-2 border-accent'
-                : 'text-text-secondary hover:text-text-primary border-b-2 border-transparent'
+                : 'text-text-muted hover:text-text-primary border-b-2 border-transparent'
             }`}
           >
             {tab.label}
+            {tab.count !== undefined && (
+              <span className="text-[10px] text-text-muted">{tab.count}</span>
+            )}
           </button>
         ))}
       </div>
 
       {/* Tab content */}
-      {activeTab === 'pending' && <PendingTab />}
-      {activeTab === 'executions' && <ExecutionsTab />}
-      {activeTab === 'patterns' && <PatternsTab />}
+      {loading ? <LoadingSkeleton lines={8} /> : (
+        <>
+          {activeTab === 'overview' && (
+            <OverviewTab
+              patterns={patterns}
+              executions={executions}
+              suggestions={suggestions}
+              onNavigate={setActiveTab}
+            />
+          )}
+          {activeTab === 'patterns' && <PatternsTab patterns={patterns} />}
+          {activeTab === 'executions' && <ExecutionsTab executions={executions} />}
+          {activeTab === 'discover' && <DiscoverTab />}
+        </>
+      )}
     </div>
   )
 }

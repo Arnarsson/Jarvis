@@ -387,3 +387,123 @@ async def classify_messages(
     logger.info("email_classify_backfill", classified=classified)
 
     return ClassifyResponse(classified=classified)
+
+
+# ---------------------------------------------------------------------------
+# Decisions endpoint
+# ---------------------------------------------------------------------------
+
+
+class DecisionItem(BaseModel):
+    """A single decision-requiring email."""
+
+    id: str
+    subject: str | None
+    from_address: str | None
+    from_name: str | None
+    date_sent: str
+    snippet: str | None
+    decision_type: str
+    urgency: str
+
+
+class DecisionsResponse(BaseModel):
+    """Response for decisions endpoint."""
+
+    decisions: list[DecisionItem]
+    count: int
+
+
+@router.get("/v2/decisions", response_model=DecisionsResponse)
+async def get_pending_decisions(
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db),
+) -> DecisionsResponse:
+    """Get emails that require decisions or approvals.
+
+    Scans recent emails for decision-requiring phrases in subject or body.
+
+    Args:
+        limit: Maximum decisions to return (default 20, max 50).
+        db: Database session.
+
+    Returns:
+        List of emails requiring decisions.
+    """
+    from sqlalchemy import or_
+
+    limit = min(limit, 50)
+
+    # Decision-requiring phrases
+    decision_phrases = [
+        "please approve",
+        "need your decision",
+        "waiting for confirmation",
+        "action required",
+        "please confirm",
+        "your approval",
+        "sign off",
+        "need to decide",
+        "pending your",
+        "RSVP",
+        "deadline",
+    ]
+
+    # Build OR conditions for subject and body
+    conditions = []
+    for phrase in decision_phrases:
+        conditions.append(EmailMessage.subject.ilike(f"%{phrase}%"))
+        conditions.append(EmailMessage.body_text.ilike(f"%{phrase}%"))
+
+    # Query for matching emails
+    query = (
+        select(EmailMessage)
+        .where(or_(*conditions))
+        .order_by(EmailMessage.date_sent.desc())
+        .limit(limit)
+    )
+
+    result = await db.execute(query)
+    messages = result.scalars().all()
+
+    decisions = []
+    for msg in messages:
+        # Determine decision type based on keywords
+        subject_lower = (msg.subject or "").lower()
+        body_lower = (msg.body_text or "").lower()
+        combined = subject_lower + " " + body_lower
+
+        if "approve" in combined or "approval" in combined:
+            decision_type = "approval"
+        elif "confirm" in combined or "rsvp" in combined:
+            decision_type = "confirmation"
+        elif "deadline" in combined or "asap" in combined:
+            decision_type = "deadline"
+        elif "sign off" in combined:
+            decision_type = "sign-off"
+        else:
+            decision_type = "action"
+
+        # Determine urgency
+        urgency = "normal"
+        if any(prefix in subject_lower for prefix in ["re:", "fw:"]):
+            urgency = "high"
+        elif any(word in subject_lower for word in ["urgent", "asap", "immediate"]):
+            urgency = "high"
+
+        decisions.append(
+            DecisionItem(
+                id=msg.id,
+                subject=msg.subject,
+                from_address=msg.from_address,
+                from_name=msg.from_name,
+                date_sent=msg.date_sent.isoformat(),
+                snippet=msg.snippet,
+                decision_type=decision_type,
+                urgency=urgency,
+            )
+        )
+
+    logger.info("pending_decisions_retrieved", count=len(decisions))
+
+    return DecisionsResponse(decisions=decisions, count=len(decisions))

@@ -3,24 +3,30 @@ import { useAppStore } from '../../stores/app.ts'
 import { useEffect } from 'react'
 import { fetchHealth } from '../../api/health.ts'
 import { QuickCapture } from '../dashboard/QuickCapture.tsx'
+import { trackPageVisit } from '../dashboard/WhereYouLeftOff.tsx'
 
 const navItems = [
   { path: '/', label: 'OVERVIEW' },
-  { path: '/daily3', label: 'DAILY 3' },
-  { path: '/focus', label: 'FOCUS' },
-  { path: '/memory', label: 'MEMORY' },
+  { path: '/focus', label: '⚡ FOCUS' },
+  { path: '/brain', label: '🧠 BRAIN' },
   { path: '/schedule', label: 'SCHEDULE' },
-  { path: '/comms', label: 'COMMS' },
   { path: '/tasks', label: 'TASKS' },
+  { path: '/comms', label: 'COMMS' },
   { path: '/command', label: 'COMMAND' },
   { path: '/system', label: 'SYSTEM' },
 ]
+// Consolidated:
+// - DAILY 3 → widget on OVERVIEW
+// - CAPTURE → Ctrl+K overlay (already works globally)
+// - PROMISES → merged into TASKS
+// - PATTERNS → tab inside BRAIN
+// - MEMORY → tab inside BRAIN
 
 const mobileNavItems = [
   { path: '/', label: 'Overview', icon: 'grid' },
-  { path: '/memory', label: 'Memory', icon: 'brain' },
+  { path: '/brain', label: 'Brain', icon: 'brain' },
   { path: '/schedule', label: 'Schedule', icon: 'calendar' },
-  { path: '/comms', label: 'Comms', icon: 'mail' },
+  { path: '/tasks', label: 'Tasks', icon: 'grid' },
   { path: '/command', label: 'Command', icon: 'terminal' },
 ]
 
@@ -143,6 +149,11 @@ function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
 export function Shell({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const { sidebarOpen, setSidebarOpen, setConnectionStatus } = useAppStore()
+
+  // Track page visits for "Where You Left Off"
+  useEffect(() => {
+    trackPageVisit(location.pathname)
+  }, [location.pathname])
 
   // Ping server health to set connection status
   useEffect(() => {

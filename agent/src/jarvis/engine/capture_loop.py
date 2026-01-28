@@ -1,8 +1,9 @@
 """Main capture loop integrating screenshot, change detection, and privacy filters."""
 
 import asyncio
+import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Callable
 
@@ -11,6 +12,8 @@ from PIL import Image
 from jarvis.capture import ChangeDetector, ScreenCapture
 from jarvis.config import Settings
 from jarvis.monitor import ExclusionFilter, IdleDetector, WindowMonitor
+
+logger = logging.getLogger(__name__)
 
 
 class CaptureState(Enum):
@@ -65,6 +68,12 @@ class CaptureLoop:
         # State
         self._state = CaptureState.STOPPED
 
+        # Watchdog: Track last successful capture to detect hangs
+        self._last_capture_timestamp: datetime | None = None
+        self._watchdog_timeout = timedelta(minutes=5)
+        self._consecutive_errors = 0
+        self._max_consecutive_errors = 10
+
         # Callbacks
         self._capture_callbacks: list[Callable[[CaptureResult], None]] = []
         self._skip_callbacks: list[Callable[[str], None]] = []
@@ -74,6 +83,11 @@ class CaptureLoop:
     def state(self) -> CaptureState:
         """Get current loop state."""
         return self._state
+
+    @property
+    def last_capture_time(self) -> datetime | None:
+        """Get timestamp of last successful capture for health monitoring."""
+        return self._last_capture_timestamp
 
     def on_capture(self, callback: Callable[[CaptureResult], None]) -> None:
         """Register callback for when a capture occurs.
@@ -154,7 +168,17 @@ class CaptureLoop:
             await asyncio.sleep(1.0)
 
     async def _tick(self) -> None:
-        """Single tick of the capture loop."""
+        """Single tick of the capture loop with watchdog and error recovery."""
+        # Watchdog check: detect if capture loop is hung
+        if self._last_capture_timestamp:
+            time_since_capture = datetime.utcnow() - self._last_capture_timestamp
+            if time_since_capture > self._watchdog_timeout:
+                logger.warning(
+                    "Watchdog triggered: No capture in %d seconds. Attempting recovery...",
+                    time_since_capture.total_seconds()
+                )
+                await self._attempt_recovery()
+        
         # Check if paused
         if self._state == CaptureState.PAUSED:
             return
@@ -171,11 +195,30 @@ class CaptureLoop:
             self._notify_skip(f"excluded_app: {pattern}")
             return
 
-        # Capture active monitors
+        # Capture active monitors with better error handling
         try:
             captures = self._screen_capture.capture_active()
+            # Reset error counter on success
+            self._consecutive_errors = 0
         except Exception as e:
-            self._notify_skip(f"capture_error: {e}")
+            self._consecutive_errors += 1
+            error_msg = str(e)
+            logger.error(
+                "Capture failed (attempt %d/%d): %s",
+                self._consecutive_errors,
+                self._max_consecutive_errors,
+                error_msg,
+                exc_info=True if self._consecutive_errors < 3 else False
+            )
+            self._notify_skip(f"capture_error: {error_msg}")
+            
+            # If too many consecutive errors, attempt recovery
+            if self._consecutive_errors >= self._max_consecutive_errors:
+                logger.critical(
+                    "Too many consecutive capture errors (%d). Attempting recovery...",
+                    self._consecutive_errors
+                )
+                await self._attempt_recovery()
             return
 
         # Process each capture
@@ -188,17 +231,44 @@ class CaptureLoop:
                 # Record the capture
                 self._change_detector.record_capture(monitor_index, image)
 
+                # Update last capture timestamp for watchdog
+                self._last_capture_timestamp = datetime.utcnow()
+
                 # Create result and notify
                 result = CaptureResult(
                     monitor_index=monitor_index,
                     image=image,
                     jpeg_bytes=jpeg_bytes,
-                    timestamp=datetime.utcnow(),
+                    timestamp=self._last_capture_timestamp,
                     reason=reason,
                 )
                 self._notify_capture(result)
+                logger.debug("Capture successful: monitor=%d, reason=%s", monitor_index, reason)
             else:
                 self._notify_skip(f"no_change: monitor {monitor_index}")
+
+    async def _attempt_recovery(self) -> None:
+        """Attempt to recover from capture errors by recreating components.
+        
+        This handles cases where the underlying capture system (e.g., Wayland grim)
+        gets into a bad state due to GDBus errors or other issues.
+        """
+        try:
+            logger.info("Recovery: Recreating screen capture component")
+            # Recreate the screen capture component to clear any bad state
+            old_capture = self._screen_capture
+            self._screen_capture = ScreenCapture(jpeg_quality=self.config.jpeg_quality)
+            del old_capture
+            
+            # Reset error counters
+            self._consecutive_errors = 0
+            
+            # Wait a moment before resuming
+            await asyncio.sleep(2.0)
+            
+            logger.info("Recovery complete, resuming capture loop")
+        except Exception as e:
+            logger.error("Recovery failed: %s", e, exc_info=True)
 
     def pause(self) -> None:
         """Pause the capture loop."""

@@ -36,9 +36,14 @@ class Settings(BaseSettings):
 
     # API Keys
     anthropic_api_key: str | None = None
+    openai_api_key: str | None = None
 
     # Google Calendar
     google_credentials_path: Path | None = None
+
+    # Focus Inbox
+    # Comma-separated list of sender emails considered VIP.
+    vip_senders: list[str] = []
 
     model_config = {
         "env_prefix": "JARVIS_",

@@ -95,19 +95,38 @@ class ScreenCapture:
             return self._capture_x11(monitor_index)
 
     def _capture_wayland(self) -> tuple[Image.Image, bytes]:
-        """Capture screenshot using grim on Wayland."""
+        """Capture screenshot using grim on Wayland with GDBus error handling."""
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
             tmpfile = f.name
 
         try:
-            # Use grim to capture to temp file
+            # Use grim to capture to temp file with timeout and error handling
             result = subprocess.run(
                 ["grim", "-t", "jpeg", "-q", str(self.jpeg_quality), tmpfile],
                 capture_output=True,
                 timeout=10,
+                env={**os.environ, "G_MESSAGES_DEBUG": ""},  # Suppress GLib debug messages
             )
+            
+            # Check for common GDBus/Wayland errors in stderr
+            stderr = result.stderr.decode() if result.stderr else ""
+            if "GDBus.Error" in stderr or "org.freedesktop.portal" in stderr:
+                # GDBus portal error - try to provide helpful context
+                raise RuntimeError(
+                    f"Wayland portal error (GDBus): {stderr.strip()}\n"
+                    "This usually means the screen capture portal is unresponsive. "
+                    "The capture loop will attempt recovery."
+                )
+            
             if result.returncode != 0:
-                raise RuntimeError(f"grim failed: {result.stderr.decode()}")
+                raise RuntimeError(f"grim failed (exit {result.returncode}): {stderr.strip()}")
+
+            # Verify the file was created and has content
+            if not os.path.exists(tmpfile) or os.path.getsize(tmpfile) == 0:
+                raise RuntimeError(
+                    "grim succeeded but produced no output file. "
+                    "This may indicate a Wayland compositor issue."
+                )
 
             # Load the captured image
             img = Image.open(tmpfile)
@@ -118,6 +137,11 @@ class ScreenCapture:
                 jpeg_bytes = f.read()
 
             return img, jpeg_bytes
+        except subprocess.TimeoutExpired:
+            raise RuntimeError(
+                "grim timed out after 10 seconds. "
+                "This usually indicates a Wayland compositor hang or GDBus issue."
+            )
         finally:
             # Clean up temp file
             try:

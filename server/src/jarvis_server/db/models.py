@@ -262,3 +262,170 @@ class WorkflowExecution(Base):
         Index("ix_workflow_executions_status", "status"),
         Index("ix_workflow_executions_created_at", "created_at"),
     )
+
+
+class QuickCapture(Base):
+    """Quick text capture for thoughts, ideas, and notes.
+    
+    Provides instant capture of text with optional tagging.
+    Can be linked to memory/conversations later.
+    """
+
+    __tablename__ = "quick_captures"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
+    )
+
+    # Captured text
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Tags (JSON array stored as Text)
+    tags_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
+
+    # Source: manual, voice, telegram, slack, etc.
+    source: Mapped[str] = mapped_column(String(20), default="manual", nullable=False)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    __table_args__ = (
+        Index("ix_quick_captures_created_at", "created_at"),
+        Index("ix_quick_captures_source", "source"),
+    )
+
+    # Property to handle JSON tags
+    @property
+    def tags(self) -> list[str]:
+        import json
+        try:
+            return json.loads(self.tags_json)
+        except:
+            return []
+    
+    @tags.setter
+    def tags(self, value: list[str]):
+        import json
+        self.tags_json = json.dumps(value)
+
+
+class Promise(Base):
+    """Promise/commitment tracking from conversations.
+    
+    Tracks commitments detected in conversations with status management.
+    """
+
+    __tablename__ = "promises"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
+    )
+
+    # Promise text
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Source conversation (optional link)
+    source_conversation_id: Mapped[str | None] = mapped_column(
+        String(36), nullable=True
+    )
+
+    # Detection timestamp
+    detected_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    # Optional due date
+    due_by: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    # Status: pending, fulfilled, broken
+    status: Mapped[str] = mapped_column(
+        String(20), default="pending", nullable=False
+    )
+
+    # Fulfillment timestamp
+    fulfilled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    __table_args__ = (
+        Index("ix_promises_status", "status"),
+        Index("ix_promises_detected_at", "detected_at"),
+        Index("ix_promises_due_by", "due_by"),
+    )
+
+
+class DetectedPattern(Base):
+    """Detected patterns from conversation analysis.
+    
+    Stores recurring themes, people, projects, and unfinished business
+    found through automated pattern detection.
+    """
+
+    __tablename__ = "detected_patterns"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
+    )
+
+    # Pattern type: recurring_person, recurring_topic, unfinished_business, broken_promise, stale_project
+    pattern_type: Mapped[str] = mapped_column(String(50), nullable=False)
+
+    # Pattern key (person name, topic, project name, etc.)
+    pattern_key: Mapped[str] = mapped_column(String(200), nullable=False)
+
+    # Description of the pattern
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Frequency count (how many times mentioned)
+    frequency: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+
+    # First seen timestamp
+    first_seen: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+    # Last seen timestamp
+    last_seen: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+    # Suggested action (optional)
+    suggested_action: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Related conversation IDs (JSON array stored as Text)
+    conversation_ids_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
+
+    # Detection timestamp
+    detected_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    # Status: active, dismissed, resolved
+    status: Mapped[str] = mapped_column(
+        String(20), default="active", nullable=False
+    )
+
+    __table_args__ = (
+        Index("ix_detected_patterns_type", "pattern_type"),
+        Index("ix_detected_patterns_status", "status"),
+        Index("ix_detected_patterns_last_seen", "last_seen"),
+        Index("ix_detected_patterns_key", "pattern_key"),
+    )
+
+    # Property to handle JSON conversation IDs
+    @property
+    def conversation_ids(self) -> list[str]:
+        import json
+        try:
+            return json.loads(self.conversation_ids_json)
+        except:
+            return []
+    
+    @conversation_ids.setter
+    def conversation_ids(self, value: list[str]):
+        import json
+        self.conversation_ids_json = json.dumps(value)

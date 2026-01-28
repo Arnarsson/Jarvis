@@ -12,6 +12,7 @@ from .ocr import get_ocr_processor
 from ..meetings.tasks import summarize_meeting_task
 from ..transcription.tasks import transcribe_meeting_task
 from ..workflow.queue import execute_workflow_task, cleanup_expired_undos
+from ..notifications.tasks import check_and_notify
 from .tasks import (
     process_backlog,
     process_capture,
@@ -43,12 +44,14 @@ class WorkerSettings:
         transcribe_meeting_task,
         summarize_meeting_task,
         execute_workflow_task,
+        check_and_notify,
     ]
 
     # Cron jobs
     cron_jobs = [
         cron(process_backlog, hour={0, 6, 12, 18}, minute=0),  # Every 6 hours
         cron(cleanup_expired_undos, hour={3}, minute=0),  # Daily at 3am
+        cron(check_and_notify, hour={9, 15, 21}, minute=0),  # 3x daily: 9am, 3pm, 9pm
     ]
 
     # Worker limits

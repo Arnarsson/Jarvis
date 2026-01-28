@@ -345,6 +345,9 @@ class CaptureOrchestrator:
 
         meeting_state = self._meeting_detector.current_state
 
+        # Get last capture time from capture loop watchdog
+        loop_last_capture = self._capture_loop.last_capture_time
+
         return {
             "state": self._capture_loop.state.value,
             "is_paused": self.is_paused,
@@ -352,6 +355,11 @@ class CaptureOrchestrator:
             "last_capture": (
                 self._last_capture_time.isoformat()
                 if self._last_capture_time
+                else None
+            ),
+            "last_capture_loop": (
+                loop_last_capture.isoformat()
+                if loop_last_capture
                 else None
             ),
             "capture_count": self._capture_count,
