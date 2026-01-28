@@ -1,4 +1,4 @@
-interface ActionSuggestionProps {
+export interface ActionSuggestionProps {
   title: string
   reason: string
   confidence: number
