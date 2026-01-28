@@ -99,6 +99,10 @@ def hybrid_search(request: SearchRequest) -> list[SearchResult]:
                 timestamp=timestamp,
                 source=payload.get("source", "screen"),
                 filepath=payload.get("filepath"),
+                title=payload.get("title"),
+                subject=payload.get("subject"),
+                snippet=payload.get("snippet"),
+                metadata={k: v for k, v in payload.items() if k not in {"text_preview", "timestamp", "filepath"}},
             )
         )
 
