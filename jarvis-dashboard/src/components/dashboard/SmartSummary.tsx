@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { apiGet } from '../../api/client.ts'
 
@@ -27,6 +28,32 @@ interface CalendarResponse {
 
 /* ───────────────── Time helpers ───────────────── */
 
+type TimeOfDay = 'morning' | 'afternoon' | 'evening'
+
+function getTimeOfDay(): TimeOfDay {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'morning'
+  if (hour < 18) return 'afternoon'
+  return 'evening'
+}
+
+function getGreeting(): string {
+  const tod = getTimeOfDay()
+  switch (tod) {
+    case 'morning': return 'Good morning, Sven.'
+    case 'afternoon': return 'Good afternoon, Sven.'
+    case 'evening': return 'Good evening, Sven.'
+  }
+}
+
+function formatEventTime(isoString: string): string {
+  return new Date(isoString).toLocaleTimeString('en-US', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 function formatTimeUntil(isoString: string): string {
   const now = Date.now()
   const then = new Date(isoString).getTime()
@@ -39,31 +66,6 @@ function formatTimeUntil(isoString: string): string {
   const remainMin = diffMin % 60
   if (remainMin === 0) return `${diffHr}h`
   return `${diffHr}h ${remainMin}m`
-}
-
-/* ───────────────── Smart Card ───────────────── */
-
-interface SmartCardProps {
-  emoji: string
-  text: string
-  subtext?: string
-  accent?: boolean
-}
-
-function SmartCard({ emoji, text, subtext, accent }: SmartCardProps) {
-  return (
-    <div className={`flex items-start gap-3 py-3.5 border-b border-border/30 last:border-b-0 ${accent ? '' : ''}`}>
-      <span className="text-lg shrink-0 mt-0.5">{emoji}</span>
-      <div className="min-w-0">
-        <p className={`text-[14px] leading-snug ${accent ? 'text-accent font-medium' : 'text-text-primary'}`}>
-          {text}
-        </p>
-        {subtext && (
-          <p className="text-[11px] text-text-muted mt-0.5">{subtext}</p>
-        )}
-      </div>
-    </div>
-  )
 }
 
 /* ───────────────── Component ───────────────── */
@@ -82,7 +84,7 @@ export function SmartSummary() {
     staleTime: 60_000,
   })
 
-  // Next meetings — use distinct key to avoid cache collision with useAgenda
+  // Next meetings
   const { data: calendarData } = useQuery({
     queryKey: ['calendar', 'upcoming', 'raw'],
     queryFn: async () => {
@@ -95,82 +97,99 @@ export function SmartSummary() {
     staleTime: 60_000,
   })
 
-  // Build smart cards
-  const cards: SmartCardProps[] = []
+  // Build time-of-day aware summary
+  const timeOfDay = getTimeOfDay()
+  const greeting = getGreeting()
+  const [now] = useState(() => Date.now())
 
-  // Email insight
-  if (emailData?.categories) {
-    const priority = emailData.categories.find((c) => c.name === 'priority')
-    const totalUnread = emailData.categories.reduce((s, c) => s + c.unread, 0)
+  // Parse calendar data
+  const todayEvents = (calendarData?.events ?? []).filter((e) => {
+    const d = new Date(e.start)
+    const today = new Date()
+    return d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear()
+  })
 
-    if (priority && priority.unread > 0) {
-      cards.push({
-        emoji: '📧',
-        text: `${priority.unread} priority email${priority.unread !== 1 ? 's' : ''} need your reply`,
-        subtext: totalUnread > priority.unread ? `${totalUnread} total unread` : undefined,
-        accent: priority.unread >= 3,
-      })
-    } else if (totalUnread > 0) {
-      cards.push({
-        emoji: '📧',
-        text: `${totalUnread} unread email${totalUnread !== 1 ? 's' : ''}`,
-      })
-    } else {
-      cards.push({
-        emoji: '📧',
-        text: 'Inbox clear — no unread emails',
-        subtext: 'Nice work',
-      })
-    }
-  }
+  const upcomingEvents = todayEvents
+    .filter((e) => new Date(e.start).getTime() > now)
+    .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
 
-  // Calendar insight — next meeting
-  if (calendarData?.events?.length) {
-    const now = Date.now()
-    const upcoming = calendarData.events
-      .filter((e) => new Date(e.start).getTime() > now)
-      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+  const pastEvents = todayEvents.filter((e) => new Date(e.end).getTime() <= now)
 
-    if (upcoming.length > 0) {
-      const next = upcoming[0]
-      const timeStr = formatTimeUntil(next.start)
-      cards.push({
-        emoji: '📅',
-        text: `Next meeting in ${timeStr}: ${next.summary}`,
-        subtext: upcoming.length > 1
-          ? `${upcoming.length - 1} more today`
-          : undefined,
-      })
-    } else {
-      // All meetings are in the past or happening now
-      const todayEvents = calendarData.events.filter((e) => {
-        const d = new Date(e.start)
-        const today = new Date()
-        return d.getDate() === today.getDate() && d.getMonth() === today.getMonth()
-      })
+  // Parse email data
+  const priority = emailData?.categories?.find((c) => c.name === 'priority')
+  const priorityCount = priority?.unread ?? 0
+  const totalUnread = emailData?.categories?.reduce((s, c) => s + c.unread, 0) ?? 0
+
+  // Build summary lines based on time of day
+  let mainLine = greeting
+  let detailLine = ''
+  let emailLine = ''
+
+  switch (timeOfDay) {
+    case 'morning': {
+      const parts: string[] = []
       if (todayEvents.length > 0) {
-        cards.push({
-          emoji: '📅',
-          text: `${todayEvents.length} meeting${todayEvents.length !== 1 ? 's' : ''} done today`,
-          subtext: 'No more scheduled',
-        })
-      } else {
-        cards.push({
-          emoji: '📅',
-          text: 'No meetings today',
-          subtext: 'Clear calendar',
-        })
+        parts.push(`${todayEvents.length} meeting${todayEvents.length !== 1 ? 's' : ''} today`)
       }
+      if (priorityCount > 0) {
+        parts.push(`${priorityCount} priority email${priorityCount !== 1 ? 's' : ''}`)
+      } else if (totalUnread > 0) {
+        parts.push(`${totalUnread} unread email${totalUnread !== 1 ? 's' : ''}`)
+      }
+      mainLine = `${greeting} ${parts.join(', ')}.`
+
+      if (upcomingEvents.length > 0) {
+        detailLine = `First meeting at ${formatEventTime(upcomingEvents[0].start)}: ${upcomingEvents[0].summary}`
+      }
+      break
+    }
+
+    case 'afternoon': {
+      if (upcomingEvents.length > 0) {
+        mainLine = `${greeting} ${upcomingEvents.length} meeting${upcomingEvents.length !== 1 ? 's' : ''} left today.`
+        detailLine = `Next in ${formatTimeUntil(upcomingEvents[0].start)}: ${upcomingEvents[0].summary}`
+      } else {
+        mainLine = `${greeting} No more meetings today.`
+        if (pastEvents.length > 0) {
+          detailLine = `${pastEvents.length} meeting${pastEvents.length !== 1 ? 's' : ''} completed`
+        }
+      }
+      if (priorityCount > 0) {
+        emailLine = `${priorityCount} priority email${priorityCount !== 1 ? 's' : ''} need your reply`
+      } else if (totalUnread > 0) {
+        emailLine = `${totalUnread} new email${totalUnread !== 1 ? 's' : ''} since this morning`
+      }
+      break
+    }
+
+    case 'evening': {
+      mainLine = `${greeting} Day winding down.`
+      if (pastEvents.length > 0) {
+        detailLine = `${pastEvents.length} meeting${pastEvents.length !== 1 ? 's' : ''} completed today`
+      }
+      // TODO: show tomorrow's events when API supports it
+      if (priorityCount > 0) {
+        emailLine = `${priorityCount} priority email${priorityCount !== 1 ? 's' : ''} remaining`
+      }
+      break
     }
   }
-
-  if (cards.length === 0) return null
 
   return (
-    <div className="mb-10 border border-border/50 rounded-lg bg-surface/30 px-5 py-1">
-      {cards.map((card, i) => (
-        <SmartCard key={i} {...card} />
-      ))}
+    <div className="mb-10 border border-border/50 rounded-lg bg-surface/30 px-5 py-4">
+      <p className="text-[15px] text-text-primary font-medium leading-relaxed">
+        {mainLine}
+      </p>
+      {detailLine && (
+        <p className="text-[13px] text-text-secondary mt-1.5 font-mono">
+          {detailLine}
+        </p>
+      )}
+      {emailLine && (
+        <p className="text-[12px] text-text-muted mt-1 font-mono">
+          📧 {emailLine}
+        </p>
+      )}
     </div>
   )
 }

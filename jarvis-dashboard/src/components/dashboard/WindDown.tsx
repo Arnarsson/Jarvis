@@ -27,7 +27,9 @@ function getDaily3Stats(): { completed: number; total: number } {
         completed: items.filter((i) => i.done).length,
       }
     }
-  } catch {}
+  } catch (err) {
+    console.error('Failed to get daily3 progress from localStorage:', err)
+  }
   return { completed: 0, total: 0 }
 }
 
@@ -41,7 +43,9 @@ function getCaptureCount(): number {
         (c: { ts: number }) => new Date(c.ts).toDateString() === today
       ).length
     }
-  } catch {}
+  } catch (err) {
+    console.error('Failed to get capture count from localStorage:', err)
+  }
   return 0
 }
 

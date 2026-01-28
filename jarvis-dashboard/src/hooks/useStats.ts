@@ -1,9 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { fetchUpcomingMeetings } from '../api/calendar.ts'
-import { fetchWorkflowSuggestions, fetchEmailAuthStatus } from '../api/health.ts'
+import { fetchWorkflowSuggestions } from '../api/health.ts'
 import { apiGet } from '../api/client.ts'
-
-// Removed unused fetchSearchHealth - velocity now derived from workflow suggestions
 
 export interface DashboardStats {
   meetingsToday: number
@@ -12,15 +10,14 @@ export interface DashboardStats {
   velocity: number
 }
 
-interface EmailMessage {
-  id: string
-  is_read: boolean
-  is_unread?: boolean
+interface CategoryCount {
+  name: string
+  total: number
+  unread: number
 }
 
-interface EmailListResponse {
-  messages: EmailMessage[]
-  count: number
+interface CategoryCountsResponse {
+  categories: CategoryCount[]
 }
 
 function isToday(isoString: string): boolean {
@@ -33,12 +30,10 @@ function isToday(isoString: string): boolean {
   )
 }
 
-async function fetchEmailCount(): Promise<number> {
+async function fetchEmailUnreadCount(): Promise<number> {
   try {
-    const auth = await fetchEmailAuthStatus()
-    if (!auth.authenticated) return 0
-    const data = await apiGet<EmailListResponse>('/api/email/messages')
-    return data.messages.filter((m) => m.is_read === false).length
+    const data = await apiGet<CategoryCountsResponse>('/api/email/categories/counts')
+    return (data.categories ?? []).reduce((sum, c) => sum + c.unread, 0)
   } catch {
     return 0
   }
@@ -57,7 +52,7 @@ export function useStats() {
 
   const emailQuery = useQuery({
     queryKey: ['email', 'unread-count'],
-    queryFn: fetchEmailCount,
+    queryFn: fetchEmailUnreadCount,
     staleTime: 60_000,
   })
 

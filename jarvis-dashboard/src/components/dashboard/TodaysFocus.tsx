@@ -18,7 +18,9 @@ function loadDaily3(): Daily3Item[] {
   try {
     const raw = localStorage.getItem(getTodayKey())
     if (raw) return JSON.parse(raw)
-  } catch {}
+  } catch (err) {
+    console.error('Failed to load daily3 from localStorage:', err)
+  }
   return []
 }
 

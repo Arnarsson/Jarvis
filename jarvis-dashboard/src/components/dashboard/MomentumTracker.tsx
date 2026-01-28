@@ -93,10 +93,11 @@ export function MomentumTracker() {
   const completedCount = completedTasks.length
 
   // "On a roll" detection — multiple tasks done within 2 hours
+  const [baseTime] = useState(() => Date.now())
   const recentCompletions = useMemo(() => {
-    const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000
+    const twoHoursAgo = baseTime - 2 * 60 * 60 * 1000
     return completedTasks.filter((t) => t.completedAt && t.completedAt >= twoHoursAgo)
-  }, [completedTasks])
+  }, [completedTasks, baseTime])
 
   const onARoll = recentCompletions.length >= 2
 

@@ -38,7 +38,9 @@ export function QuickCapture() {
       const existing = JSON.parse(localStorage.getItem('jarvis-captures') || '[]')
       existing.push({ text: trimmed, source: 'quick-capture', ts: Date.now() })
       localStorage.setItem('jarvis-captures', JSON.stringify(existing))
-    } catch {}
+    } catch (err) {
+      console.error('Failed to save capture to localStorage:', err)
+    }
 
     // POST to API (fire and forget)
     apiPost('/api/captures/', { text: trimmed, source: 'quick-capture' }).catch(() => {})

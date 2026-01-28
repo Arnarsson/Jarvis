@@ -25,6 +25,8 @@ from jarvis_server.api.meetings import router as meetings_router
 from jarvis_server.api.search import router as search_router
 from jarvis_server.api.timeline import router as timeline_router
 from jarvis_server.api.workflow import router as workflow_router
+from jarvis_server.api.eureka import router as eureka_router
+from jarvis_server.api.activity import router as activity_router
 from jarvis_server.imports.api import router as import_router
 from jarvis_server.web import router as web_router
 from jarvis_server.web.api import router as web_api_router
@@ -137,6 +139,8 @@ def create_app() -> FastAPI:
     app.include_router(search_router)
     app.include_router(timeline_router)
     app.include_router(workflow_router)
+    app.include_router(eureka_router)
+    app.include_router(activity_router)
     app.include_router(import_router)
 
     # Include web UI routers (must be after API routers to avoid route conflicts)

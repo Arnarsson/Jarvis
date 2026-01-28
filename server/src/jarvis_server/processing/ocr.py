@@ -1,12 +1,15 @@
 """OCR processor for screenshot text extraction.
 
-Uses Tesseract by default (fast on CPU) with EasyOCR fallback for GPU.
+Uses Claude Vision (best quality) with Tesseract/EasyOCR fallback.
 """
 
+import base64
 import logging
+import os
 import shutil
 from functools import lru_cache
 
+import anthropic
 import numpy as np
 from PIL import Image, ImageEnhance, ImageFilter
 
@@ -21,12 +24,30 @@ class OCRProcessor:
         use_gpu: bool = False,
         languages: list[str] | None = None,
         prefer_tesseract: bool = True,
+        use_vision: bool = True,
     ):
         self.languages = languages or ["eng", "dan"]
         self.use_gpu = use_gpu
         self.prefer_tesseract = prefer_tesseract
+        self.use_vision = use_vision
         self._tesseract_available: bool | None = None
         self._easyocr_reader = None
+        self._anthropic_client = None
+
+    @property
+    def anthropic_client(self) -> anthropic.Anthropic:
+        """Lazy initialization of Anthropic client."""
+        if self._anthropic_client is None:
+            # Check JARVIS_ANTHROPIC_API_KEY first, fall back to ANTHROPIC_API_KEY
+            api_key = os.getenv("JARVIS_ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_API_KEY")
+            if not api_key:
+                raise ValueError(
+                    "ANTHROPIC_API_KEY not set - cannot use vision OCR. "
+                    "Set JARVIS_ANTHROPIC_API_KEY or ANTHROPIC_API_KEY environment variable."
+                )
+            self._anthropic_client = anthropic.Anthropic(api_key=api_key)
+            logger.info("Initialized Anthropic client for vision OCR")
+        return self._anthropic_client
 
     @property
     def tesseract_available(self) -> bool:
@@ -84,6 +105,55 @@ class OCRProcessor:
 
         return image
 
+    def extract_with_vision(self, filepath: str) -> str:
+        """Extract text using Claude Vision (best quality for UI screenshots)."""
+        with open(filepath, "rb") as f:
+            img_data = base64.standard_b64encode(f.read()).decode("utf-8")
+
+        # Determine media type based on file extension
+        media_type = "image/png"
+        if filepath.lower().endswith((".jpg", ".jpeg")):
+            media_type = "image/jpeg"
+        elif filepath.lower().endswith(".webp"):
+            media_type = "image/webp"
+        elif filepath.lower().endswith(".gif"):
+            media_type = "image/gif"
+
+        logger.info(f"Extracting text with Claude Vision from {filepath}")
+        response = self.anthropic_client.messages.create(
+            model="claude-3-5-sonnet-20241022",
+            max_tokens=4096,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": media_type,
+                                "data": img_data,
+                            },
+                        },
+                        {
+                            "type": "text",
+                            "text": (
+                                "Extract all visible text from this screenshot. Include:\n"
+                                "1. Window titles and app names\n"
+                                "2. All readable text content\n"
+                                "3. Menu items, buttons, labels\n"
+                                "4. Terminal/console output\n"
+                                "5. Code snippets if visible\n\n"
+                                "Format as plain text, preserving layout where possible. "
+                                "Be thorough and capture everything readable."
+                            ),
+                        },
+                    ],
+                }
+            ],
+        )
+        return response.content[0].text
+
     def extract_with_tesseract(self, image: Image.Image) -> str:
         """Extract text using Tesseract (fast CPU)."""
         import pytesseract
@@ -91,10 +161,10 @@ class OCRProcessor:
         processed = self.preprocess(image, for_tesseract=True)
 
         # Tesseract config for screenshot text
-        # PSM 11 = Sparse text - good for UI with scattered text
+        # PSM 3 = Fully automatic page segmentation - best for full screenshots
         # OEM 3 = Default, use whatever is available
         lang_str = "+".join(self.languages)
-        config = "--psm 11 --oem 3"
+        config = "--psm 3 --oem 3"
 
         text = pytesseract.image_to_string(processed, lang=lang_str, config=config)
         return text.strip()
@@ -115,7 +185,19 @@ class OCRProcessor:
         return "\n".join(results)
 
     def extract_text(self, filepath: str) -> str:
-        """Extract text from image file."""
+        """Extract text from image file.
+        
+        Prioritizes Claude Vision (best quality, especially for ultrawide/complex UI),
+        falls back to Tesseract/EasyOCR if vision fails or is disabled.
+        """
+        # Try vision model first if enabled (best quality for UI screenshots)
+        if self.use_vision:
+            try:
+                return self.extract_with_vision(filepath)
+            except Exception as e:
+                logger.warning(f"Vision OCR failed, falling back to Tesseract: {e}")
+
+        # Load image for traditional OCR methods
         image = Image.open(filepath)
 
         # Use Tesseract if available and preferred (faster on CPU)
@@ -132,6 +214,6 @@ class OCRProcessor:
 @lru_cache(maxsize=1)
 def get_ocr_processor() -> OCRProcessor:
     """Get singleton OCR processor instance."""
-    # Tesseract is better for terminal/code text, use it by default
-    logger.info("Creating OCR processor (preferring Tesseract for code/terminal)")
-    return OCRProcessor(use_gpu=False, prefer_tesseract=True)
+    # Vision model is best for UI screenshots, especially ultrawide monitors
+    logger.info("Creating OCR processor (using Claude Vision for best quality)")
+    return OCRProcessor(use_gpu=False, prefer_tesseract=True, use_vision=True)
