@@ -174,42 +174,7 @@ function ProactiveSuggestionsSection() {
       })
     }
 
-    // If backend data isn't available yet, show 3 demo suggestions so the UI
-    // still fulfills the "suggest actions" contract.
-    if (items.length === 0) {
-      items.push(
-        {
-          key: 'demo:meeting',
-          title: 'Meeting with Thomas in 30 min',
-          reason: 'Demo suggestion (replace with live calendar data)',
-          confidence: 0.75,
-          actions: [
-            { label: 'Prep Brief', primary: true, onClick: () => alert('Prep Brief (demo)') },
-            { label: 'Snooze', onClick: () => setDismissed((d) => ({ ...d, 'demo:meeting': true })) },
-          ],
-        },
-        {
-          key: 'demo:commitment',
-          title: 'Overdue commitment: Send pricing doc',
-          reason: 'Demo suggestion (replace with live commitments)',
-          confidence: 0.7,
-          actions: [
-            { label: 'Complete', primary: true, onClick: () => alert('Complete (demo)') },
-            { label: 'Reschedule', onClick: () => alert('Reschedule (demo)') },
-          ],
-        },
-        {
-          key: 'demo:stale',
-          title: 'Stale contact: Atlas (58 days)',
-          reason: 'Demo suggestion (replace with live people graph)',
-          confidence: 0.65,
-          actions: [
-            { label: 'Reconnect', primary: true, onClick: () => alert('Reconnect (demo)') },
-            { label: 'Dismiss', onClick: () => setDismissed((d) => ({ ...d, 'demo:stale': true })) },
-          ],
-        }
-      )
-    }
+    // No demo data - only show real suggestions from backend
 
     return items.filter((s) => !dismissed[s.key])
   }, [dismissed, meetingPreviews, promises, staleContacts])
