@@ -79,23 +79,52 @@ async def search_memory(
         data = response.json()
         results = data.get("results", [])
         total = data.get("total", len(results))
+        synthesis = data.get("synthesis") or {}
+        grouped = data.get("sources_grouped") or {}
 
         # Format results as readable text
         if not results:
             result_text = "No matching memories found."
         else:
-            lines = [f"Found {total} relevant memories:\n"]
+            lines: list[str] = []
+
+            if synthesis.get("summary"):
+                conf = synthesis.get("confidence")
+                conf_str = f" (confidence {conf:.2f})" if isinstance(conf, (int, float)) else ""
+                lines.append(f"SYNTHESIS{conf_str}:\n{synthesis.get('summary')}\n")
+
+                if synthesis.get("key_dates"):
+                    lines.append("Key dates: " + ", ".join(synthesis.get("key_dates")[:5]))
+                if synthesis.get("key_people"):
+                    lines.append("Key people: " + ", ".join(synthesis.get("key_people")[:8]))
+                if synthesis.get("action_items"):
+                    lines.append("Action items: " + "; ".join(synthesis.get("action_items")[:5]))
+                lines.append("")
+
+            if grouped:
+                lines.append("SOURCES (grouped):")
+                for group_name in ["email", "calendar", "captures", "conversations", "other"]:
+                    items = grouped.get(group_name) or []
+                    if not items:
+                        continue
+                    lines.append(f"- {group_name} ({len(items)})")
+                    for item in items[:5]:
+                        title = item.get("subject") or item.get("title") or item.get("source") or ""
+                        date = (item.get("date") or item.get("timestamp") or "")
+                        date_part = date[:10] if isinstance(date, str) and len(date) >= 10 else date
+                        snippet = item.get("snippet") or item.get("ocr_snippet") or ""
+                        snippet = snippet.replace("\n", " ")
+                        lines.append(f"  • {title} ({date_part}) — {snippet[:160]}")
+                lines.append("")
+
+            lines.append(f"Found {total} relevant memories (flat list):\n")
             for i, result in enumerate(results, 1):
                 source = result.get("source", "unknown")
                 timestamp = result.get("timestamp", "")
-                # Format timestamp to be more readable
-                if timestamp:
-                    # Take just the date part if it's an ISO timestamp
-                    date_part = timestamp[:10] if len(timestamp) >= 10 else timestamp
-                else:
-                    date_part = "unknown date"
+                date_part = timestamp[:10] if isinstance(timestamp, str) and len(timestamp) >= 10 else (timestamp or "unknown date")
                 text_preview = result.get("text_preview", "")
                 lines.append(f"{i}. [{source}] {date_part}\n   {text_preview}")
+
             result_text = "\n".join(lines)
 
         # Calculate duration and log success
