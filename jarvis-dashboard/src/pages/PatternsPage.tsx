@@ -1,26 +1,28 @@
-import { useState, useEffect } from 'react'
-import { apiGet } from '../api/client.ts'
+import { useEffect, useState } from 'react'
+import { apiGet, apiPost } from '../api/client.ts'
 
 /* ───────────────────────── Types ───────────────────────── */
 
+interface PatternAction {
+  label: string
+  action: 'create_automation' | 'create_project' | 'dismiss'
+  params: Record<string, any>
+}
+
 interface Pattern {
   id: string
-  pattern_type: string
-  pattern_key: string
+  type: string
+  title: string
   description: string
-  frequency: number
-  first_seen: string
-  last_seen: string
-  suggested_action: string | null
-  conversation_ids: string[]
+  frequency: string
+  confidence: number
   detected_at: string
-  status: string
+  occurrence_count: number
+  actions: PatternAction[]
 }
 
 interface PatternsResponse {
   patterns: Pattern[]
-  total: number
-  by_type: Record<string, number>
 }
 
 /* ───────────────────────── Helpers ───────────────────────── */
@@ -45,56 +47,76 @@ function timeAgo(isoDate: string): string {
 
 /* ───────────────────────── Pattern Card ───────────────────────── */
 
-function PatternCard({ pattern }: { pattern: Pattern }) {
+function PatternCard({ pattern, onDidAction }: { pattern: Pattern; onDidAction: () => void }) {
+  const [busyAction, setBusyAction] = useState<string | null>(null)
+
   const typeConfig = {
-    recurring_person: { 
-      label: 'RECURRING PERSON', 
-      color: 'text-blue-400', 
-      bg: 'bg-blue-500/10', 
+    recurring_person: {
+      label: 'RECURRING PERSON',
+      color: 'text-blue-400',
+      bg: 'bg-blue-500/10',
       border: 'border-blue-500/30',
-      icon: '👤'
+      icon: '👤',
     },
-    stale_person: { 
-      label: 'STALE CONTACT', 
-      color: 'text-yellow-400', 
-      bg: 'bg-yellow-500/10', 
+    stale_person: {
+      label: 'STALE CONTACT',
+      color: 'text-yellow-400',
+      bg: 'bg-yellow-500/10',
       border: 'border-yellow-500/30',
-      icon: '⏰'
+      icon: '⏰',
     },
-    recurring_topic: { 
-      label: 'RECURRING TOPIC', 
-      color: 'text-purple-400', 
-      bg: 'bg-purple-500/10', 
+    recurring_topic: {
+      label: 'RECURRING TOPIC',
+      color: 'text-purple-400',
+      bg: 'bg-purple-500/10',
       border: 'border-purple-500/30',
-      icon: '💭'
+      icon: '💭',
     },
-    unfinished_business: { 
-      label: 'UNFINISHED', 
-      color: 'text-orange-400', 
-      bg: 'bg-orange-500/10', 
+    unfinished_business: {
+      label: 'UNFINISHED',
+      color: 'text-orange-400',
+      bg: 'bg-orange-500/10',
       border: 'border-orange-500/30',
-      icon: '⚠️'
+      icon: '⚠️',
     },
-    broken_promise: { 
-      label: 'BROKEN PROMISE', 
-      color: 'text-red-400', 
-      bg: 'bg-red-500/10', 
+    broken_promise: {
+      label: 'BROKEN PROMISE',
+      color: 'text-red-400',
+      bg: 'bg-red-500/10',
       border: 'border-red-500/30',
-      icon: '❌'
+      icon: '❌',
     },
-    stale_project: { 
-      label: 'STALE PROJECT', 
-      color: 'text-yellow-400', 
-      bg: 'bg-yellow-500/10', 
+    stale_project: {
+      label: 'STALE PROJECT',
+      color: 'text-yellow-400',
+      bg: 'bg-yellow-500/10',
       border: 'border-yellow-500/30',
-      icon: '📁'
+      icon: '📁',
     },
-  }[pattern.pattern_type] || { 
-    label: pattern.pattern_type.toUpperCase(), 
-    color: 'text-text-muted', 
-    bg: 'bg-surface', 
+  }[pattern.type] || {
+    label: pattern.type.toUpperCase(),
+    color: 'text-text-muted',
+    bg: 'bg-surface',
     border: 'border-border',
-    icon: '·'
+    icon: '·',
+  }
+
+  const runAction = async (a: PatternAction) => {
+    setBusyAction(a.action)
+    try {
+      if (a.action === 'create_automation') {
+        await apiPost(`/api/patterns/${pattern.id}/convert-automation`)
+      } else if (a.action === 'create_project') {
+        const name = encodeURIComponent(a.params?.name || pattern.title)
+        await apiPost(`/api/patterns/${pattern.id}/convert-project?name=${name}`)
+      } else if (a.action === 'dismiss') {
+        const snooze = Number(a.params?.snooze_days || 30)
+        await apiPost(`/api/patterns/${pattern.id}/dismiss?snooze_days=${encodeURIComponent(String(snooze))}`)
+      }
+      onDidAction()
+    } finally {
+      setBusyAction(null)
+    }
   }
 
   return (
@@ -103,9 +125,7 @@ function PatternCard({ pattern }: { pattern: Pattern }) {
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="flex items-center gap-2">
           <span className="text-lg">{typeConfig.icon}</span>
-          <h3 className="text-sm font-mono font-semibold text-text-primary">
-            {pattern.pattern_key}
-          </h3>
+          <h3 className="text-sm font-mono font-semibold text-text-primary">{pattern.title}</h3>
         </div>
         <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${typeConfig.color} bg-black/20 uppercase`}>
           {typeConfig.label}
@@ -113,26 +133,40 @@ function PatternCard({ pattern }: { pattern: Pattern }) {
       </div>
 
       {/* Description */}
-      <p className="text-xs text-text-secondary leading-relaxed mb-3">
-        {pattern.description}
-      </p>
+      <p className="text-xs text-text-secondary leading-relaxed mb-3">{pattern.description}</p>
 
-      {/* Suggested Action */}
-      {pattern.suggested_action && (
-        <div className="mb-3 p-2 rounded bg-accent/10 border border-accent/20">
-          <p className="text-[11px] font-mono text-accent">
-            💡 {pattern.suggested_action}
-          </p>
-        </div>
-      )}
+      {/* Why/Confidence */}
+      <div className="flex items-center justify-between text-[10px] font-mono text-text-muted mb-3">
+        <span>
+          Frequency: {pattern.frequency} · Mentions: {pattern.occurrence_count}
+        </span>
+        <span>Confidence: {(pattern.confidence * 100).toFixed(0)}%</span>
+      </div>
+
+      {/* Actions */}
+      <div className="flex flex-wrap gap-2">
+        {pattern.actions.map((a) => (
+          <button
+            key={a.action}
+            disabled={!!busyAction}
+            onClick={() => runAction(a)}
+            className={`px-3 py-1.5 text-[11px] font-mono rounded border transition-colors ${
+              busyAction === a.action
+                ? 'border-border text-text-muted bg-surface'
+                : a.action === 'dismiss'
+                  ? 'border-border text-text-secondary hover:border-red-500/40 hover:text-red-300'
+                  : 'border-border text-text-secondary hover:border-accent/50 hover:text-text-primary'
+            }`}
+          >
+            {busyAction === a.action ? 'Working…' : a.label}
+          </button>
+        ))}
+      </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between text-[10px] font-mono text-text-muted">
-        <div className="flex items-center gap-3">
-          <span>Last seen: {timeAgo(pattern.last_seen)}</span>
-          <span>Mentions: {pattern.frequency}</span>
-        </div>
-        <span>{pattern.conversation_ids.length} convos</span>
+      <div className="mt-3 flex items-center justify-between text-[10px] font-mono text-text-muted">
+        <span>Detected: {timeAgo(pattern.detected_at)}</span>
+        <span>id: {pattern.id.slice(0, 8)}</span>
       </div>
     </div>
   )
@@ -141,27 +175,21 @@ function PatternCard({ pattern }: { pattern: Pattern }) {
 /* ───────────────────────── Main Page ───────────────────────── */
 
 export function PatternsPage() {
-  const [patterns, setPatterns] = useState<Pattern[]>([])
+  const [allPatterns, setAllPatterns] = useState<Pattern[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [filterType, setFilterType] = useState<string | null>(null)
-  const [byType, setByType] = useState<Record<string, number>>({})
 
   useEffect(() => {
     fetchPatterns()
-  }, [filterType])
+  }, [])
 
   const fetchPatterns = async () => {
     setLoading(true)
     setError(null)
     try {
-      const params = new URLSearchParams()
-      if (filterType) params.append('pattern_type', filterType)
-      params.append('limit', '100')
-      
-      const data = await apiGet<PatternsResponse>(`/api/v2/patterns?${params}`)
-      setPatterns(data.patterns)
-      setByType(data.by_type)
+      const data = await apiGet<PatternsResponse>('/api/patterns?limit=100')
+      setAllPatterns(data.patterns)
     } catch (e) {
       console.error('Failed to fetch patterns:', e)
       setError('Failed to load patterns')
@@ -170,14 +198,17 @@ export function PatternsPage() {
     }
   }
 
+  const byType = allPatterns.reduce<Record<string, number>>((acc, p) => {
+    acc[p.type] = (acc[p.type] || 0) + 1
+    return acc
+  }, {})\n\n  const patterns = filterType ? allPatterns.filter((p) => p.type === filterType) : allPatterns
+
   return (
     <div className="max-w-6xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
-          <h1 className="text-2xl font-mono font-bold text-text-primary tracking-wider">
-            🔍 DETECTED PATTERNS
-          </h1>
+          <h1 className="text-2xl font-mono font-bold text-text-primary tracking-wider">🔍 DETECTED PATTERNS</h1>
           {patterns.length > 0 && (
             <span className="text-[10px] font-mono text-text-muted">
               {patterns.length} pattern{patterns.length !== 1 ? 's' : ''}
@@ -192,9 +223,7 @@ export function PatternsPage() {
       {/* Type Filter */}
       {Object.keys(byType).length > 0 && (
         <div className="flex flex-wrap items-center gap-2 mb-6">
-          <span className="text-[10px] font-mono text-text-muted tracking-wider uppercase">
-            FILTER:
-          </span>
+          <span className="text-[10px] font-mono text-text-muted tracking-wider uppercase">FILTER:</span>
           <button
             onClick={() => setFilterType(null)}
             className={`px-3 py-1.5 text-[11px] font-mono rounded border transition-colors ${
@@ -203,7 +232,7 @@ export function PatternsPage() {
                 : 'border-border text-text-secondary hover:border-border-light hover:text-text-primary'
             }`}
           >
-            All ({patterns.length})
+            All ({allPatterns.length})
           </button>
           {Object.entries(byType).map(([type, count]) => (
             <button
@@ -238,22 +267,16 @@ export function PatternsPage() {
 
       {/* Empty State */}
       {!loading && patterns.length === 0 && (
-        <div className="border border-border/30 rounded-lg p-10 text-center">
-          <div className="text-3xl mb-4">🔍</div>
-          <p className="text-sm font-mono text-text-secondary mb-2">
-            No patterns detected yet
-          </p>
-          <p className="text-xs font-mono text-text-muted">
-            Run the pattern detector to analyze your conversation history
-          </p>
+        <div className="border border-border rounded-lg p-8 bg-surface text-center">
+          <p className="text-text-muted text-xs font-mono">No patterns detected yet.</p>
         </div>
       )}
 
       {/* Patterns Grid */}
       {!loading && patterns.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {patterns.map((pattern) => (
-            <PatternCard key={pattern.id} pattern={pattern} />
+            <PatternCard key={pattern.id} pattern={pattern} onDidAction={fetchPatterns} />
           ))}
         </div>
       )}
