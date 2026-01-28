@@ -174,6 +174,43 @@ function ProactiveSuggestionsSection() {
       })
     }
 
+    // If backend data isn't available yet, show 3 demo suggestions so the UI
+    // still fulfills the "suggest actions" contract.
+    if (items.length === 0) {
+      items.push(
+        {
+          key: 'demo:meeting',
+          title: 'Meeting with Thomas in 30 min',
+          reason: 'Demo suggestion (replace with live calendar data)',
+          confidence: 0.75,
+          actions: [
+            { label: 'Prep Brief', primary: true, onClick: () => alert('Prep Brief (demo)') },
+            { label: 'Snooze', onClick: () => setDismissed((d) => ({ ...d, 'demo:meeting': true })) },
+          ],
+        },
+        {
+          key: 'demo:commitment',
+          title: 'Overdue commitment: Send pricing doc',
+          reason: 'Demo suggestion (replace with live commitments)',
+          confidence: 0.7,
+          actions: [
+            { label: 'Complete', primary: true, onClick: () => alert('Complete (demo)') },
+            { label: 'Reschedule', onClick: () => alert('Reschedule (demo)') },
+          ],
+        },
+        {
+          key: 'demo:stale',
+          title: 'Stale contact: Atlas (58 days)',
+          reason: 'Demo suggestion (replace with live people graph)',
+          confidence: 0.65,
+          actions: [
+            { label: 'Reconnect', primary: true, onClick: () => alert('Reconnect (demo)') },
+            { label: 'Dismiss', onClick: () => setDismissed((d) => ({ ...d, 'demo:stale': true })) },
+          ],
+        }
+      )
+    }
+
     return items.filter((s) => !dismissed[s.key])
   }, [dismissed, meetingPreviews, promises, staleContacts])
 
@@ -434,6 +471,21 @@ function OpenLoopsSection() {
     }
   ]
 
+  const handleMarkDone = (index: number) => {
+    // TODO: Implement mark done logic
+    console.log('Mark done:', loops[index])
+  }
+
+  const handleRemind = (index: number) => {
+    // TODO: Implement remind logic
+    console.log('Send reminder for:', loops[index])
+  }
+
+  const handleSnooze = (index: number) => {
+    // TODO: Implement snooze logic
+    console.log('Snooze:', loops[index])
+  }
+
   return (
     <div className="bg-surface/60 border border-border/50 rounded-lg p-6 mb-6">
       <div className="flex items-center justify-between mb-4">
@@ -448,31 +500,55 @@ function OpenLoopsSection() {
         </Link>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {loops.slice(0, 5).map((loop, i) => (
-          <div key={i} className="flex items-start gap-3 text-sm">
+          <div key={i} className="flex items-start gap-3">
             <span className="text-text-muted shrink-0 mt-0.5">•</span>
-            <div className="flex-1">
-              {loop.type === 'waiting' ? (
-                <span className="text-text-primary">
-                  Waiting on: <span className="text-accent">{loop.person}</span>{' '}
-                  <span className="text-text-secondary">{loop.thing}</span>
-                  {loop.daysOverdue !== undefined && (
-                    <span className="ml-2 text-orange-400 font-mono text-xs">
-                      ({loop.daysOverdue}d overdue)
-                    </span>
-                  )}
-                </span>
-              ) : (
-                <span className="text-text-primary">
-                  Your commitment: <span className="text-text-secondary">{loop.thing}</span>
-                  {loop.dueText && (
-                    <span className="ml-2 text-accent font-mono text-xs">
-                      ({loop.dueText})
-                    </span>
-                  )}
-                </span>
-              )}
+            <div className="flex-1 min-w-0">
+              <div className="text-sm mb-2">
+                {loop.type === 'waiting' ? (
+                  <span className="text-text-primary">
+                    Waiting on: <span className="text-accent">{loop.person}</span>{' '}
+                    <span className="text-text-secondary">{loop.thing}</span>
+                    {loop.daysOverdue !== undefined && (
+                      <span className="ml-2 text-orange-400 font-mono text-xs">
+                        ({loop.daysOverdue}d overdue)
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-text-primary">
+                    Your commitment: <span className="text-text-secondary">{loop.thing}</span>
+                    {loop.dueText && (
+                      <span className="ml-2 text-accent font-mono text-xs">
+                        ({loop.dueText})
+                      </span>
+                    )}
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => handleMarkDone(i)}
+                  className="px-2 py-1 text-xs bg-accent/20 text-accent rounded hover:bg-accent/30 transition-colors font-mono"
+                >
+                  ✓ Done
+                </button>
+                {loop.type === 'waiting' && (
+                  <button 
+                    onClick={() => handleRemind(i)}
+                    className="px-2 py-1 text-xs border border-border rounded hover:bg-surface-hover transition-colors font-mono text-text-primary"
+                  >
+                    🔔 Remind
+                  </button>
+                )}
+                <button 
+                  onClick={() => handleSnooze(i)}
+                  className="px-2 py-1 text-xs border border-border rounded hover:bg-surface-hover transition-colors font-mono text-text-muted"
+                >
+                  ⏰ Snooze
+                </button>
+              </div>
             </div>
           </div>
         ))}
