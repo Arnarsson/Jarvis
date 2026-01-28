@@ -58,14 +58,27 @@ export function ContextHandoffModal({ project, isOpen, onClose }: ContextHandoff
   const fetchHandoff = async () => {
     setLoading(true)
     setError(null)
+    setHandoff(null)
+    
+    // Create timeout promise (10 seconds)
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Request timed out after 10 seconds')), 10000)
+    })
+    
     try {
-      const data = await apiGet<HandoffData>(
-        `/api/v2/context/handoff?project=${encodeURIComponent(project)}&limit=8`
-      )
+      const data = await Promise.race([
+        apiGet<HandoffData>(
+          `/api/v2/context/handoff?project=${encodeURIComponent(project)}&limit=8`
+        ),
+        timeoutPromise
+      ])
       setHandoff(data)
     } catch (e) {
       console.error('Failed to fetch context handoff:', e)
-      setError('Failed to generate context handoff')
+      const errorMessage = e instanceof Error && e.message.includes('timed out')
+        ? 'Request timed out. The server may be busy or unavailable.'
+        : 'Failed to generate context handoff. Please try again.'
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -118,9 +131,21 @@ export function ContextHandoffModal({ project, isOpen, onClose }: ContextHandoff
           )}
 
           {/* Error */}
-          {error && (
-            <div className="border border-red-500/20 rounded-lg p-4 bg-red-500/5">
-              <p className="text-red-400/70 text-xs font-mono">{error}</p>
+          {error && !loading && (
+            <div className="border border-red-500/30 rounded-lg p-4 bg-red-500/10">
+              <div className="flex items-start gap-3">
+                <span className="text-red-400 text-lg flex-shrink-0">⚠</span>
+                <div>
+                  <p className="text-red-400 text-xs font-mono font-bold mb-1">Error</p>
+                  <p className="text-red-400/80 text-xs font-mono">{error}</p>
+                  <button
+                    onClick={fetchHandoff}
+                    className="mt-3 px-3 py-1 text-[10px] font-mono border border-red-400/30 text-red-400 hover:bg-red-400/10 transition-colors rounded"
+                  >
+                    RETRY
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -129,17 +154,23 @@ export function ContextHandoffModal({ project, isOpen, onClose }: ContextHandoff
             <div className="space-y-6">
               {/* Summary Text */}
               <div className="prose prose-invert prose-sm max-w-none">
-                <div className="text-xs font-mono text-text-secondary leading-relaxed whitespace-pre-line">
-                  {handoff.summary}
-                </div>
+                {handoff.summary ? (
+                  <div className="text-xs font-mono text-text-secondary leading-relaxed whitespace-pre-line">
+                    {handoff.summary}
+                  </div>
+                ) : (
+                  <div className="text-xs font-mono text-text-muted italic py-4">
+                    No recent decisions or context found for this project.
+                  </div>
+                )}
               </div>
 
               {/* Pending Items */}
-              {handoff.pending.length > 0 && (
-                <div className="border-t border-border/30 pt-6">
-                  <h3 className="text-[11px] font-mono font-bold text-text-primary uppercase tracking-wider mb-3">
-                    ⚠️ Pending Actions ({handoff.pending.length})
-                  </h3>
+              <div className="border-t border-border/30 pt-6">
+                <h3 className="text-[11px] font-mono font-bold text-text-primary uppercase tracking-wider mb-3">
+                  ⚠️ Open Action Items
+                </h3>
+                {handoff.pending.length > 0 ? (
                   <ul className="space-y-2">
                     {handoff.pending.map((item, i) => (
                       <li
@@ -151,15 +182,19 @@ export function ContextHandoffModal({ project, isOpen, onClose }: ContextHandoff
                       </li>
                     ))}
                   </ul>
-                </div>
-              )}
+                ) : (
+                  <div className="text-xs font-mono text-text-muted italic py-2">
+                    No open action items found.
+                  </div>
+                )}
+              </div>
 
               {/* Sources */}
-              {handoff.sources.length > 0 && (
-                <div className="border-t border-border/30 pt-6">
-                  <h3 className="text-[11px] font-mono font-bold text-text-primary uppercase tracking-wider mb-3">
-                    📚 Sources ({handoff.sources.length})
-                  </h3>
+              <div className="border-t border-border/30 pt-6">
+                <h3 className="text-[11px] font-mono font-bold text-text-primary uppercase tracking-wider mb-3">
+                  📚 Sources
+                </h3>
+                {handoff.sources.length > 0 ? (
                   <div className="space-y-2">
                     {handoff.sources.map((source, i) => (
                       <div
@@ -176,8 +211,12 @@ export function ContextHandoffModal({ project, isOpen, onClose }: ContextHandoff
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="text-xs font-mono text-text-muted italic py-2">
+                    No conversation sources found.
+                  </div>
+                )}
+              </div>
 
               {/* Footer */}
               <div className="border-t border-border/30 pt-4 text-[10px] font-mono text-text-muted text-center">
