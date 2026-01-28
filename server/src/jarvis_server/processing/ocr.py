@@ -1,6 +1,6 @@
 """OCR processor for screenshot text extraction.
 
-Uses Claude Vision (best quality) with Tesseract/EasyOCR fallback.
+Uses local Ollama Vision (free) + Claude Vision (best quality) with Tesseract/EasyOCR fallback.
 """
 
 import base64
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class OCRProcessor:
-    """OCR processor with Tesseract (fast CPU) and EasyOCR (GPU) support."""
+    """OCR processor with Ollama Vision (local), Claude Vision, Tesseract, and EasyOCR support."""
 
     def __init__(
         self,
@@ -25,14 +25,17 @@ class OCRProcessor:
         languages: list[str] | None = None,
         prefer_tesseract: bool = True,
         use_vision: bool = True,
+        prefer_local: bool = True,
     ):
         self.languages = languages or ["eng", "dan"]
         self.use_gpu = use_gpu
         self.prefer_tesseract = prefer_tesseract
         self.use_vision = use_vision
+        self.prefer_local = prefer_local
         self._tesseract_available: bool | None = None
         self._easyocr_reader = None
         self._anthropic_client = None
+        self._ollama_available: bool | None = None
 
     @property
     def anthropic_client(self) -> anthropic.Anthropic:
@@ -48,6 +51,30 @@ class OCRProcessor:
             self._anthropic_client = anthropic.Anthropic(api_key=api_key)
             logger.info("Initialized Anthropic client for vision OCR")
         return self._anthropic_client
+
+    @property
+    def ollama_available(self) -> bool:
+        """Check if Ollama is running and has the vision model."""
+        if self._ollama_available is None:
+            try:
+                import requests
+
+                response = requests.get("http://localhost:11434/api/tags", timeout=2)
+                if response.status_code == 200:
+                    models = response.json().get("models", [])
+                    # Check if kimi-k2.5:cloud or any kimi model is available
+                    has_kimi = any("kimi" in model.get("name", "") for model in models)
+                    self._ollama_available = has_kimi
+                    if has_kimi:
+                        logger.info("Ollama Vision (Kimi K2.5) available")
+                    else:
+                        logger.info("Ollama running but Kimi model not found")
+                else:
+                    self._ollama_available = False
+            except Exception as e:
+                logger.debug(f"Ollama not available: {e}")
+                self._ollama_available = False
+        return self._ollama_available
 
     @property
     def tesseract_available(self) -> bool:
@@ -154,6 +181,27 @@ class OCRProcessor:
         )
         return response.content[0].text
 
+    def extract_with_ollama_vision(self, filepath: str, model: str = "kimi-k2.5:cloud") -> str:
+        """Extract text using local Ollama vision model (free, no API costs)."""
+        import requests
+
+        with open(filepath, "rb") as f:
+            img_data = base64.standard_b64encode(f.read()).decode("utf-8")
+
+        logger.info(f"Extracting text with Ollama Vision ({model}) from {filepath}")
+        response = requests.post(
+            "http://localhost:11434/api/generate",
+            json={
+                "model": model,
+                "prompt": "Extract all visible text from this screenshot. Include window titles, app names, all readable text content. Be thorough.",
+                "images": [img_data],
+                "stream": False,
+            },
+            timeout=60,
+        )
+        response.raise_for_status()
+        return response.json().get("response", "")
+
     def extract_with_tesseract(self, image: Image.Image) -> str:
         """Extract text using Tesseract (fast CPU)."""
         import pytesseract
@@ -187,15 +235,24 @@ class OCRProcessor:
     def extract_text(self, filepath: str) -> str:
         """Extract text from image file.
         
-        Prioritizes Claude Vision (best quality, especially for ultrawide/complex UI),
-        falls back to Tesseract/EasyOCR if vision fails or is disabled.
+        Fallback chain:
+        1. Ollama Vision (kimi-k2.5) - free, local, if prefer_local=True and available
+        2. Claude Vision - paid, best quality for complex UI
+        3. Tesseract/EasyOCR - free, traditional OCR
         """
-        # Try vision model first if enabled (best quality for UI screenshots)
+        # Try local Ollama Vision first if preferred and available (free, no API costs)
+        if self.prefer_local and self.use_vision and self.ollama_available:
+            try:
+                return self.extract_with_ollama_vision(filepath)
+            except Exception as e:
+                logger.warning(f"Ollama Vision OCR failed, falling back to Claude Vision: {e}")
+
+        # Try Claude Vision if enabled (best quality for UI screenshots)
         if self.use_vision:
             try:
                 return self.extract_with_vision(filepath)
             except Exception as e:
-                logger.warning(f"Vision OCR failed, falling back to Tesseract: {e}")
+                logger.warning(f"Claude Vision OCR failed, falling back to Tesseract: {e}")
 
         # Load image for traditional OCR methods
         image = Image.open(filepath)
@@ -214,6 +271,6 @@ class OCRProcessor:
 @lru_cache(maxsize=1)
 def get_ocr_processor() -> OCRProcessor:
     """Get singleton OCR processor instance."""
-    # Vision model is best for UI screenshots, especially ultrawide monitors
-    logger.info("Creating OCR processor (using Claude Vision for best quality)")
-    return OCRProcessor(use_gpu=False, prefer_tesseract=True, use_vision=True)
+    # Prefer local Ollama Vision (free) → Claude Vision (paid) → Tesseract
+    logger.info("Creating OCR processor (prefer local Ollama, fallback to Claude Vision)")
+    return OCRProcessor(use_gpu=False, prefer_tesseract=True, use_vision=True, prefer_local=True)
