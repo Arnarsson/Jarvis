@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from jarvis_server import __version__
 from jarvis_server.api.calendar import router as calendar_router
 from jarvis_server.api.captures import get_storage, router as captures_router
+from jarvis_server.api.captures_health import router as captures_health_router
 from jarvis_server.api.catchup import router as catchup_router
 from jarvis_server.api.email import router as email_router
 from jarvis_server.api.health import router as health_router
@@ -27,6 +28,23 @@ from jarvis_server.api.timeline import router as timeline_router
 from jarvis_server.api.workflow import router as workflow_router
 from jarvis_server.api.eureka import router as eureka_router
 from jarvis_server.api.activity import router as activity_router
+from jarvis_server.api.bridge import router as bridge_router
+from jarvis_server.api.daily3 import router as daily3_router
+from jarvis_server.api.memory_timeline import router as memory_timeline_router
+from jarvis_server.api.quick_capture import router as quick_capture_router
+from jarvis_server.api.promises import router as promises_router
+from jarvis_server.api.patterns import router as patterns_router
+from jarvis_server.api.briefing import router as briefing_router
+from jarvis_server.api.actions import router as actions_router
+from jarvis_server.api.context_handoff import router as context_handoff_router
+from jarvis_server.api.people_graph import router as people_graph_router
+from jarvis_server.api.project_pulse import router as project_pulse_router
+from jarvis_server.api.conversations import router as conversations_router
+from jarvis_server.api.linear import router as linear_router
+from jarvis_server.api.insights import router as insights_router
+from jarvis_server.api.app_insights import router as app_insights_router
+from jarvis_server.api.meeting_brief import router as meeting_brief_router
+from jarvis_server.api.why import router as why_router
 from jarvis_server.imports.api import router as import_router
 from jarvis_server.web import router as web_router
 from jarvis_server.web.api import router as web_api_router
@@ -132,6 +150,7 @@ def create_app() -> FastAPI:
     # Include API routers
     app.include_router(calendar_router)
     app.include_router(captures_router)
+    app.include_router(captures_health_router)
     app.include_router(catchup_router)
     app.include_router(email_router)
     app.include_router(health_router)
@@ -141,6 +160,23 @@ def create_app() -> FastAPI:
     app.include_router(workflow_router)
     app.include_router(eureka_router)
     app.include_router(activity_router)
+    app.include_router(bridge_router)
+    app.include_router(daily3_router)
+    app.include_router(memory_timeline_router)
+    app.include_router(quick_capture_router)
+    app.include_router(promises_router)
+    app.include_router(patterns_router)
+    app.include_router(briefing_router)
+    app.include_router(actions_router)
+    app.include_router(context_handoff_router)
+    app.include_router(people_graph_router)
+    app.include_router(project_pulse_router)
+    app.include_router(conversations_router)
+    app.include_router(linear_router)
+    app.include_router(insights_router)
+    app.include_router(app_insights_router)
+    app.include_router(meeting_brief_router)
+    app.include_router(why_router)
     app.include_router(import_router)
 
     # Include web UI routers (must be after API routers to avoid route conflicts)
