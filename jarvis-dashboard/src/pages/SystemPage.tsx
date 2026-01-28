@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiGet, apiPost } from '../api/client.ts'
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton.tsx'
@@ -309,6 +310,7 @@ function DataMetric({ value, label }: { value: string | number; label: string })
 
 export function SystemPage() {
   const queryClient = useQueryClient()
+  const [showDetails, setShowDetails] = useState(false)
 
   // --- Data fetching ---
 
@@ -420,6 +422,10 @@ export function SystemPage() {
     ? 'operational'
     : 'disconnected'
 
+  // Redis status inferred from server
+  const redisStatus: ServiceStatus =
+    serverStatus === 'operational' ? 'operational' : 'disconnected'
+
   // Overall banner status
   const overallStatus: ServiceStatus =
     serverStatus === 'down'
@@ -461,78 +467,118 @@ export function SystemPage() {
       {/* Page header */}
       <h2 className="section-title">System</h2>
 
-      {/* System Status Banner */}
-      <div className="border border-border py-4 px-6 mb-8 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <StatusDotPulsing status={overallStatus} />
-          <span
-            className={`text-xl font-bold font-mono tracking-wider ${statusTextColor(overallStatus)}`}
-          >
-            {overallLabel}
+      {/* System Status Banner - Compact */}
+      <div className="border border-border py-5 px-6 mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <StatusDotPulsing status={overallStatus} />
+            <span
+              className={`text-xl font-bold font-mono tracking-wider ${statusTextColor(overallStatus)}`}
+            >
+              {overallLabel}
+            </span>
+          </div>
+          {health?.version && (
+            <span className="font-mono text-xs text-text-secondary">
+              v{health.version}
+            </span>
+          )}
+        </div>
+
+        {/* Compact Service Status Row */}
+        <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm mb-4">
+          <span className="flex items-center gap-1.5">
+            <span className="text-text-secondary">Server</span>
+            <span className={`w-2 h-2 rounded-full ${statusColor(serverStatus)}`} />
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="text-text-secondary">Database</span>
+            <span className={`w-2 h-2 rounded-full ${statusColor(dbStatus)}`} />
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="text-text-secondary">Redis</span>
+            <span className={`w-2 h-2 rounded-full ${statusColor(redisStatus)}`} />
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="text-text-secondary">Qdrant</span>
+            <span className={`w-2 h-2 rounded-full ${statusColor(qdrantStatus)}`} />
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="text-text-secondary">Search</span>
+            <span className={`w-2 h-2 rounded-full ${statusColor(searchStatus)}`} />
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="text-text-secondary">Calendar</span>
+            <span className={`w-2 h-2 rounded-full ${statusColor(calendarStatus)}`} />
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="text-text-secondary">Email</span>
+            <span className={`w-2 h-2 rounded-full ${statusColor(emailStatus)}`} />
           </span>
         </div>
-        {health?.version && (
-          <span className="font-mono text-xs text-text-secondary">
-            v{health.version}
-          </span>
-        )}
+
+        {/* Expand Details Toggle */}
+        <button
+          onClick={() => setShowDetails(!showDetails)}
+          className="font-mono text-[11px] tracking-wider text-text-secondary hover:text-accent transition-colors flex items-center gap-2"
+        >
+          {showDetails ? 'Hide details ▲' : 'Expand details ▼'}
+        </button>
       </div>
 
-      {/* Service Health Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
-        <ServiceCard
-          name="SERVER"
-          status={serverStatus}
-          detail={health?.version ? `v${health.version}` : undefined}
-        />
-        <ServiceCard
-          name="DATABASE"
-          status={dbStatus}
-          detail={health?.database !== 'unknown' ? health?.database : undefined}
-        />
-        <ServiceCard
-          name="REDIS"
-          status={
-            // Redis status is not exposed by current health endpoint;
-            // infer from server being up (Redis is required for ARQ)
-            serverStatus === 'operational' ? 'operational' : 'disconnected'
-          }
-        />
-        <ServiceCard
-          name="QDRANT (VECTOR DB)"
-          status={qdrantStatus}
-          detail={
-            search?.collection_exists
-              ? 'Collection active'
-              : search?.error
-                ? search.error.slice(0, 60)
+      {/* Detailed Service Cards (Collapsible) */}
+      {showDetails && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
+          <ServiceCard
+            name="SERVER"
+            status={serverStatus}
+            detail={health?.version ? `v${health.version}` : undefined}
+          />
+          <ServiceCard
+            name="DATABASE"
+            status={dbStatus}
+            detail={health?.database !== 'unknown' ? health?.database : undefined}
+          />
+          <ServiceCard
+            name="REDIS"
+            status={redisStatus}
+          />
+          <ServiceCard
+            name="QDRANT (VECTOR DB)"
+            status={qdrantStatus}
+            detail={
+              search?.collection_exists
+                ? 'Collection active'
+                : search?.error
+                  ? search.error.slice(0, 60)
+                  : undefined
+            }
+          />
+          <ServiceCard
+            name="SEARCH ENGINE"
+            status={searchStatus}
+            detail={
+              search?.document_count !== undefined
+                ? `${formatNumber(search.document_count)} documents`
                 : undefined
-          }
-        />
-        <ServiceCard
-          name="SEARCH ENGINE"
-          status={searchStatus}
-          detail={
-            search?.document_count !== undefined
-              ? `${formatNumber(search.document_count)} documents`
-              : undefined
-          }
-        />
-        <ServiceCard
-          name="CALENDAR"
-          status={calendarStatus}
-          detail={calAuth?.authenticated ? 'Authenticated' : 'Not connected'}
-        />
-        <ServiceCard
-          name="EMAIL"
-          status={emailStatus}
-          detail={
-            emailAuth?.authenticated
-              ? emailAuth.email ?? 'Authenticated'
-              : 'Not connected'
-          }
-        />
-      </div>
+            }
+          />
+          <ServiceCard
+            name="CALENDAR"
+            status={calendarStatus}
+            detail={calAuth?.authenticated ? 'Authenticated' : 'Not connected'}
+          />
+          <ServiceCard
+            name="EMAIL"
+            status={emailStatus}
+            detail={
+              emailAuth?.authenticated
+                ? emailAuth.email ?? 'Authenticated'
+                : 'Not connected'
+            }
+          />
+        </div>
+      )}
 
       {/* Eureka Workers Section */}
       <h3 className="section-title">Eureka Workers</h3>
