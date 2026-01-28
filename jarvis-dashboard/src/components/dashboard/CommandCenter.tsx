@@ -1,10 +1,219 @@
 import { Link } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { ActionSuggestion } from './ActionSuggestion'
+import { MeetingBriefModal } from './MeetingBrief'
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    COMMAND CENTER — Actionable Dashboard (No Guilt Stats)
    Replaces anxiety-inducing counters with actionable sections
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+// ─────────────────────────────────────────────────────────────────
+// PROACTIVE SUGGESTIONS — "Do this next" (P1)
+// ─────────────────────────────────────────────────────────────────
+
+type MeetingPreview = {
+  event_id: string
+  title: string
+  start_time: string
+  minutes_until: number
+  attendee_count?: number
+  needs_prep?: boolean
+}
+
+type PromisesApiResponse = {
+  promises: Array<{
+    id: string
+    text: string
+    detected_at: string
+    due_by: string | null
+    status: 'pending' | 'fulfilled' | 'broken'
+  }>
+  total: number
+}
+
+type PeopleGraphResponse = {
+  contacts: Array<{
+    name: string
+    status: 'active' | 'fading' | 'stale'
+    days_since_contact: number | null
+    suggested_action?: string | null
+  }>
+}
+
+async function safeJson<T>(url: string): Promise<T | null> {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return null
+    return (await res.json()) as T
+  } catch {
+    return null
+  }
+}
+
+async function patchJson(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url, { method: 'PATCH' })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+function ProactiveSuggestionsSection() {
+  const [meetingPreviews, setMeetingPreviews] = useState<MeetingPreview[]>([])
+  const [promises, setPromises] = useState<PromisesApiResponse['promises']>([])
+  const [staleContacts, setStaleContacts] = useState<PeopleGraphResponse['contacts']>([])
+  const [dismissed, setDismissed] = useState<Record<string, boolean>>({})
+  const [briefEventId, setBriefEventId] = useState<string | null>(null)
+
+  const refresh = async () => {
+    // Meetings needing prep soon
+    const meetingData = await safeJson<{ meetings?: MeetingPreview[] }>(
+      '/api/meeting/upcoming/preview?minutes_ahead=60'
+    )
+    setMeetingPreviews(meetingData?.meetings ?? [])
+
+    // Commitments/open loops (fallback to promises)
+    const promisesData = await safeJson<PromisesApiResponse>('/api/v2/promises?status=pending&limit=25')
+    setPromises(promisesData?.promises ?? [])
+
+    // Stale contacts (derive from people graph)
+    const people = await safeJson<PeopleGraphResponse>('/api/v2/people/graph?min_frequency=3&limit=200')
+    const stale = (people?.contacts ?? []).filter((c) => c.status === 'stale')
+    stale.sort((a, b) => (b.days_since_contact ?? 0) - (a.days_since_contact ?? 0))
+    setStaleContacts(stale)
+  }
+
+  useEffect(() => {
+    void refresh()
+  }, [])
+
+  const suggestions = useMemo(() => {
+    const items: Array<{
+      key: string
+      title: string
+      reason: string
+      confidence: number
+      actions: { label: string; onClick: () => void; primary?: boolean }[]
+    }> = []
+
+    // 1) Meeting prep suggestion
+    const nextMeeting = meetingPreviews[0]
+    if (nextMeeting) {
+      items.push({
+        key: `meeting:${nextMeeting.event_id}`,
+        title: `Meeting in ${nextMeeting.minutes_until} min — ${nextMeeting.title}`,
+        reason: 'Quick context + talking points in ~60s',
+        confidence: 0.85,
+        actions: [
+          {
+            label: 'Prep Brief',
+            primary: true,
+            onClick: () => setBriefEventId(nextMeeting.event_id),
+          },
+          {
+            label: 'Snooze',
+            onClick: () =>
+              setDismissed((d) => ({ ...d, [`meeting:${nextMeeting.event_id}`]: true })),
+          },
+        ],
+      })
+    }
+
+    // 2) Overdue commitment suggestion
+    const now = Date.now()
+    const overdue = promises.find((p) => p.due_by && new Date(p.due_by).getTime() < now)
+    if (overdue) {
+      items.push({
+        key: `promise:${overdue.id}`,
+        title: `Overdue commitment: ${overdue.text}`,
+        reason: 'Marked pending past due date',
+        confidence: 0.8,
+        actions: [
+          {
+            label: 'Complete',
+            primary: true,
+            onClick: async () => {
+              const ok = await patchJson(`/api/v2/promises/${overdue.id}/status?status=fulfilled`)
+              if (ok) await refresh()
+            },
+          },
+          {
+            label: 'Reschedule',
+            onClick: () => window.location.assign('/promises'),
+          },
+        ],
+      })
+    }
+
+    // 3) Stale contact suggestion
+    const stale = staleContacts[0]
+    if (stale) {
+      const days = stale.days_since_contact ?? 0
+      items.push({
+        key: `stale:${stale.name}`,
+        title: `Stale contact: ${stale.name} (${days} days)` ,
+        reason: stale.suggested_action || 'No recent contact — consider reconnecting',
+        confidence: 0.7,
+        actions: [
+          {
+            label: 'Reconnect',
+            primary: true,
+            onClick: () => {
+              // UX placeholder until we have a dedicated reconnection flow.
+              const body = encodeURIComponent(`Hey ${stale.name} — quick check-in. Got 10 min this week?`)
+              window.location.href = `mailto:?subject=${encodeURIComponent('Quick check-in')}&body=${body}`
+            },
+          },
+          {
+            label: 'Dismiss',
+            onClick: () => setDismissed((d) => ({ ...d, [`stale:${stale.name}`]: true })),
+          },
+        ],
+      })
+    }
+
+    return items.filter((s) => !dismissed[s.key])
+  }, [dismissed, meetingPreviews, promises, staleContacts])
+
+  if (suggestions.length === 0) return null
+
+  return (
+    <div className="bg-surface/60 border border-border/50 rounded-lg p-6 mb-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-mono text-[11px] text-text-secondary tracking-widest uppercase">
+          ✅ DO THIS NEXT
+        </h3>
+        <button
+          onClick={() => void refresh()}
+          className="font-mono text-xs text-accent hover:text-accent/80 transition-colors"
+        >
+          Refresh
+        </button>
+      </div>
+
+      <div className="space-y-3">
+        {suggestions.map((s) => (
+          <ActionSuggestion
+            key={s.key}
+            title={s.title}
+            reason={s.reason}
+            confidence={s.confidence}
+            actions={s.actions}
+          />
+        ))}
+      </div>
+
+      {briefEventId && (
+        <MeetingBriefModal
+          eventId={briefEventId}
+          onClose={() => setBriefEventId(null)}
+        />
+      )}
+    </div>
+  )
+}
 
 // ─────────────────────────────────────────────────────────────────
 // RESUME SECTION — Where you left off
@@ -358,6 +567,7 @@ export function CommandCenter() {
   return (
     <div className="max-w-4xl mx-auto">
       <ResumeCard />
+      <ProactiveSuggestionsSection />
       <Todays3Section />
       <OpenLoopsSection />
       <NextMeetingSection />

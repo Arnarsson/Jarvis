@@ -201,7 +201,9 @@ export function PatternsPage() {
   const byType = allPatterns.reduce<Record<string, number>>((acc, p) => {
     acc[p.type] = (acc[p.type] || 0) + 1
     return acc
-  }, {})\n\n  const patterns = filterType ? allPatterns.filter((p) => p.type === filterType) : allPatterns
+  }, {})
+
+  const patterns = filterType ? allPatterns.filter((p) => p.type === filterType) : allPatterns
 
   return (
     <div className="max-w-6xl mx-auto">

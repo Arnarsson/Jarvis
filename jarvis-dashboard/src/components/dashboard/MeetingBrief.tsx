@@ -282,11 +282,10 @@ function AttendeeCard({ attendee }: { attendee: AttendeeContext }) {
 
 interface MeetingBriefButtonProps {
   eventId: string
-  meetingTitle: string
   className?: string
 }
 
-export function MeetingBriefButton({ eventId, meetingTitle, className = '' }: MeetingBriefButtonProps) {
+export function MeetingBriefButton({ eventId, className = '' }: MeetingBriefButtonProps) {
   const [showBrief, setShowBrief] = useState(false)
 
   return (

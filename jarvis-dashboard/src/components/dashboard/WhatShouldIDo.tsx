@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchMorningBriefing } from '../../api/briefing.ts'
 import { apiGet } from '../../api/client.ts'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton.tsx'
-import { updateLinearTask, createLinearTask, sendReminder, LINEAR_STATES } from '../../api/actions.ts'
+import { updateLinearTask, createLinearTask, LINEAR_STATES } from '../../api/actions.ts'
 
 /* ───────────────── Types ───────────────── */
 
@@ -153,16 +153,8 @@ export function WhatShouldIDo() {
     queryClient.invalidateQueries({ queryKey: ['briefing', 'morning'] })
   }
   
-  const handleSendReminder = async (contact: string, subject: string) => {
-    // Extract email if available, otherwise use contact name
-    const email = contact.includes('@') ? contact : `${contact.toLowerCase().replace(' ', '')}@example.com`
-    await sendReminder({
-      to_email: email,
-      to_name: contact,
-      subject: subject,
-      reminder_text: 'Just wanted to follow up on our last conversation.',
-    })
-  }
+  // Reminder handler for future use
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
 
   if (isLoading) {
     return (

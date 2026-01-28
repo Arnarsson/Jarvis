@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchMorningBriefing, fetchPatterns } from '../../api/briefing.ts'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton.tsx'
-import { draftEmail, createLinearTask } from '../../api/actions.ts'
+import { draftEmail } from '../../api/actions.ts'
 
 /* ───────────────── Helpers ───────────────── */
 
@@ -94,13 +94,6 @@ export function WhatDidIMiss() {
     })
   }
   
-  const handleCreateTaskFromThread = async (title: string, description: string) => {
-    await createLinearTask({
-      title: title.slice(0, 80),
-      description,
-      priority: 3,
-    })
-  }
 
   if (isLoading) {
     return (

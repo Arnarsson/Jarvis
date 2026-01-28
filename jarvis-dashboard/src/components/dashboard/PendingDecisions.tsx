@@ -83,12 +83,14 @@ export function PendingDecisions() {
             return (
               <div
                 key={decision.id}
-                onClick={() => setExpandedId(isExpanded ? null : decision.id)}
-                className="p-4 bg-background-elevated border border-border rounded-lg hover:border-accent/40 transition-colors cursor-pointer"
+                className="p-4 bg-background-elevated border border-border rounded-lg hover:border-accent/40 transition-colors"
               >
                 {/* Header: From + Date */}
                 <div className="flex items-start justify-between gap-4 mb-2">
-                  <div className="flex-1 min-w-0">
+                  <div 
+                    className="flex-1 min-w-0 cursor-pointer"
+                    onClick={() => setExpandedId(isExpanded ? null : decision.id)}
+                  >
                     <p className="text-[13px] font-medium text-text-primary truncate">
                       {decision.from_name || decision.from_address || 'Unknown'}
                     </p>
@@ -105,16 +107,68 @@ export function PendingDecisions() {
                 </div>
 
                 {/* Subject */}
-                <h4 className="text-[14px] font-medium text-text-primary mb-2 line-clamp-2">
+                <h4 
+                  className="text-[14px] font-medium text-text-primary mb-2 line-clamp-2 cursor-pointer"
+                  onClick={() => setExpandedId(isExpanded ? null : decision.id)}
+                >
                   {decision.subject || '(No subject)'}
                 </h4>
 
                 {/* Snippet — expanded shows full text */}
                 {decision.snippet && (
-                  <p className={`text-[12px] text-text-secondary ${isExpanded ? '' : 'line-clamp-2'}`}>
+                  <p 
+                    className={`text-[12px] text-text-secondary mb-3 cursor-pointer ${isExpanded ? '' : 'line-clamp-2'}`}
+                    onClick={() => setExpandedId(isExpanded ? null : decision.id)}
+                  >
                     {decision.snippet}
                   </p>
                 )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-2 flex-wrap mt-3">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      // TODO: Implement reply action
+                      console.log('Reply to:', decision.id)
+                    }}
+                    className="px-3 py-1.5 text-xs bg-accent text-black rounded hover:bg-accent/80 transition-colors font-mono"
+                  >
+                    ✉️ Reply
+                  </button>
+                  {(decision.decision_type === 'approval' || decision.decision_type === 'sign-off') && (
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        // TODO: Implement approve action
+                        console.log('Approve:', decision.id)
+                      }}
+                      className="px-3 py-1.5 text-xs border border-green-500/50 text-green-400 rounded hover:bg-green-500/10 transition-colors font-mono"
+                    >
+                      ✓ Approve
+                    </button>
+                  )}
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      // TODO: Implement snooze action
+                      console.log('Snooze:', decision.id)
+                    }}
+                    className="px-3 py-1.5 text-xs border border-border rounded hover:bg-surface-hover transition-colors font-mono text-text-secondary"
+                  >
+                    ⏰ Snooze
+                  </button>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      // TODO: Implement mark read action
+                      console.log('Mark done:', decision.id)
+                    }}
+                    className="px-3 py-1.5 text-xs border border-border rounded hover:bg-surface-hover transition-colors font-mono text-text-muted"
+                  >
+                    ✓ Done
+                  </button>
+                </div>
               </div>
             )
           })}

@@ -171,49 +171,99 @@ function AgendaEventRow({ event, showNowBefore }: { event: CalendarEvent; showNo
   const past = isPastEvent(event.end)
   const current = isCurrentEvent(event.start, event.end)
 
+  const handleJoinMeeting = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    // TODO: Implement join meeting logic (check for meet link, zoom, etc.)
+    console.log('Join meeting:', event.id, event.summary)
+    if (event.location && event.location.includes('http')) {
+      window.open(event.location, '_blank')
+    }
+  }
+
+  const handlePrepBrief = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setExpanded(!expanded)
+  }
+
   return (
     <div>
       {showNowBefore && <NowIndicator />}
       <div
-        onClick={() => !past && setExpanded(!expanded)}
-        className={`flex items-center justify-between py-4 border-b border-border/50 last:border-b-0 transition-opacity ${
-          past ? 'opacity-35' : 'cursor-pointer hover:bg-surface/50'
+        className={`py-4 border-b border-border/50 last:border-b-0 transition-opacity ${
+          past ? 'opacity-35' : ''
         } ${current ? 'bg-accent/5 -mx-2 px-2 rounded' : ''}`}
       >
-        <div className="flex-1 min-w-0">
-          <p className={`text-[15px] font-medium ${
-            past ? 'text-text-muted line-through decoration-border/50' : 'text-text-primary'
-          }`}>
-            {event.summary}
-            {current && (
-              <span className="ml-2 inline-block w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-            )}
-            {!past && (
-              <span className="ml-2 text-[10px] text-text-muted font-mono">
-                {expanded ? '▾' : '▸'}
-              </span>
-            )}
-          </p>
-          <p className={`text-[12px] mt-1 font-mono tracking-wide ${
-            past ? 'text-text-muted' : 'text-text-secondary'
-          }`}>
-            {formatTime(event.start)} &mdash; {formatTime(event.end)}
-            {attendee && (
-              <span> / {attendee}</span>
-            )}
-          </p>
+        <div className="flex items-start justify-between gap-4">
+          <div 
+            className="flex-1 min-w-0 cursor-pointer"
+            onClick={() => !past && setExpanded(!expanded)}
+          >
+            <p className={`text-[15px] font-medium ${
+              past ? 'text-text-muted line-through decoration-border/50' : 'text-text-primary'
+            }`}>
+              {event.summary}
+              {current && (
+                <span className="ml-2 inline-block w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+              )}
+              {!past && (
+                <span className="ml-2 text-[10px] text-text-muted font-mono">
+                  {expanded ? '▾' : '▸'}
+                </span>
+              )}
+            </p>
+            <p className={`text-[12px] mt-1 font-mono tracking-wide ${
+              past ? 'text-text-muted' : 'text-text-secondary'
+            }`}>
+              {formatTime(event.start)} &mdash; {formatTime(event.end)}
+              {attendee && (
+                <span> / {attendee}</span>
+              )}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span
+              className={`font-mono text-[10px] tracking-wider px-2.5 py-1 border ${
+                past
+                  ? 'border-border/30 text-text-muted bg-border/10'
+                  : priority === 'priority'
+                    ? 'border-accent/40 text-accent bg-accent/10'
+                    : 'border-border text-text-secondary bg-border/30'
+              }`}
+            >
+              {past ? 'DONE' : priority === 'priority' ? 'PRIORITY' : 'ROUTINE'}
+            </span>
+          </div>
         </div>
-        <span
-          className={`ml-4 shrink-0 font-mono text-[10px] tracking-wider px-2.5 py-1 border ${
-            past
-              ? 'border-border/30 text-text-muted bg-border/10'
-              : priority === 'priority'
-                ? 'border-accent/40 text-accent bg-accent/10'
-                : 'border-border text-text-secondary bg-border/30'
-          }`}
-        >
-          {past ? 'DONE' : priority === 'priority' ? 'PRIORITY' : 'ROUTINE'}
-        </span>
+
+        {/* Action Buttons (only for upcoming/current meetings) */}
+        {!past && (
+          <div className="flex gap-2 mt-3">
+            {(current || new Date(event.start).getTime() - Date.now() < 15 * 60 * 1000) && (
+              <button 
+                onClick={handleJoinMeeting}
+                className="px-3 py-1.5 text-xs bg-accent text-black rounded hover:bg-accent/80 transition-colors font-mono"
+              >
+                🔗 Join
+              </button>
+            )}
+            <button 
+              onClick={handlePrepBrief}
+              className="px-3 py-1.5 text-xs border border-border rounded hover:bg-surface-hover transition-colors font-mono text-text-primary"
+            >
+              📋 {expanded ? 'Hide' : 'Prep'}
+            </button>
+            <button 
+              onClick={(e) => {
+                e.stopPropagation()
+                // TODO: Implement skip/cancel action
+                console.log('Skip meeting:', event.id)
+              }}
+              className="px-3 py-1.5 text-xs border border-border rounded hover:bg-surface-hover transition-colors font-mono text-text-muted"
+            >
+              ⏭️ Skip
+            </button>
+          </div>
+        )}
       </div>
       {expanded && !past && (
         <MeetingBriefPanel eventId={event.id} />

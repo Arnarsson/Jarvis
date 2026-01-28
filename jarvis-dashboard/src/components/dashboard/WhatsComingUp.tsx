@@ -67,7 +67,7 @@ export function WhatsComingUp() {
 
   // Merge and deduplicate by summary + start time
   const allEvents = [...calendarEvents.map((e) => ({
-    id: e.event_id || e.summary, // fallback to summary if no event_id
+    id: `${e.summary}-${e.start_time}`,
     summary: e.summary,
     start: e.start_time,
     end: e.end_time,
@@ -193,7 +193,6 @@ export function WhatsComingUp() {
                 <div className="shrink-0">
                   <MeetingBriefButton 
                     eventId={event.id}
-                    meetingTitle={event.summary}
                   />
                 </div>
               )}
