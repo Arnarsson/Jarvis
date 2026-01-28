@@ -1,12 +1,12 @@
 import { HeroHeader } from '../components/dashboard/HeroHeader.tsx'
-import { MomentumTracker } from '../components/dashboard/MomentumTracker.tsx'
-import { SmartSummary } from '../components/dashboard/SmartSummary.tsx'
-import { StatsGrid } from '../components/dashboard/StatsGrid.tsx'
-import { AgendaList } from '../components/dashboard/AgendaList.tsx'
-import { PendingLogic } from '../components/dashboard/PendingLogic.tsx'
-import { Communications } from '../components/dashboard/Communications.tsx'
-import { ActiveTracks } from '../components/dashboard/ActiveTracks.tsx'
+import { CommandCenter } from '../components/dashboard/CommandCenter.tsx'
 import { ErrorBoundary } from '../components/ErrorBoundary.tsx'
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// DASHBOARD — Command Center Home (No Guilt Stats)
+// Replaced anxiety-inducing counters with actionable sections
+// Task: 7-293 (P0) — Remove "777 inbound" and "00 tasks" guilt UI
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 function WidgetFallback({ name }: { name: string }) {
   return (
@@ -18,39 +18,27 @@ function WidgetFallback({ name }: { name: string }) {
 
 export function Dashboard() {
   return (
-    <div>
+    <div className="max-w-6xl mx-auto">
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          HEADER — Date, time, system status
+         ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <ErrorBoundary fallback={<WidgetFallback name="Header" />}>
         <HeroHeader />
       </ErrorBoundary>
-      <ErrorBoundary fallback={<WidgetFallback name="Momentum" />}>
-        <MomentumTracker />
-      </ErrorBoundary>
-      <ErrorBoundary fallback={<WidgetFallback name="Summary" />}>
-        <SmartSummary />
-      </ErrorBoundary>
-      <ErrorBoundary fallback={<WidgetFallback name="Stats" />}>
-        <StatsGrid />
-      </ErrorBoundary>
 
-      {/* Two-column: Agenda + Pending Logic */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-10 mb-10">
-        <ErrorBoundary fallback={<WidgetFallback name="Agenda" />}>
-          <AgendaList />
-        </ErrorBoundary>
-        <ErrorBoundary fallback={<WidgetFallback name="Pending Logic" />}>
-          <PendingLogic />
-        </ErrorBoundary>
-      </div>
-
-      {/* Two-column: Communications + Active Tracks */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-10">
-        <ErrorBoundary fallback={<WidgetFallback name="Communications" />}>
-          <Communications />
-        </ErrorBoundary>
-        <ErrorBoundary fallback={<WidgetFallback name="Active Tracks" />}>
-          <ActiveTracks />
-        </ErrorBoundary>
-      </div>
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          COMMAND CENTER — Actionable dashboard (replaces guilt stats)
+          
+          Sections:
+          1. RESUME — Where you left off
+          2. TODAY'S 3 — Daily priorities  
+          3. OPEN LOOPS — Commitments & waiting-on
+          4. NEXT MEETING — Prep brief
+          5. FOCUS INBOX — Priority triage
+         ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <ErrorBoundary fallback={<WidgetFallback name="Command Center" />}>
+        <CommandCenter />
+      </ErrorBoundary>
     </div>
   )
 }
