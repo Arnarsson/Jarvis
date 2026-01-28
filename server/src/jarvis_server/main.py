@@ -21,6 +21,7 @@ from jarvis_server.api.captures import get_storage, router as captures_router
 from jarvis_server.api.captures_health import router as captures_health_router
 from jarvis_server.api.catchup import router as catchup_router
 from jarvis_server.api.email import router as email_router
+from jarvis_server.api.inbox import router as inbox_router
 from jarvis_server.api.health import router as health_router
 from jarvis_server.api.meetings import router as meetings_router
 from jarvis_server.api.search import router as search_router
@@ -44,6 +45,7 @@ from jarvis_server.api.linear import router as linear_router
 from jarvis_server.api.insights import router as insights_router
 from jarvis_server.api.app_insights import router as app_insights_router
 from jarvis_server.api.meeting_brief import router as meeting_brief_router
+from jarvis_server.api.resume import router as resume_router
 from jarvis_server.api.why import router as why_router
 from jarvis_server.imports.api import router as import_router
 from jarvis_server.web import router as web_router
@@ -153,6 +155,7 @@ def create_app() -> FastAPI:
     app.include_router(captures_health_router)
     app.include_router(catchup_router)
     app.include_router(email_router)
+    app.include_router(inbox_router)
     app.include_router(health_router)
     app.include_router(meetings_router)
     app.include_router(search_router)
@@ -176,6 +179,7 @@ def create_app() -> FastAPI:
     app.include_router(insights_router)
     app.include_router(app_insights_router)
     app.include_router(meeting_brief_router)
+    app.include_router(resume_router)
     app.include_router(why_router)
     app.include_router(import_router)
 

@@ -34,6 +34,14 @@ function formatTime(isoString: string): string {
   })
 }
 
+function formatDayLabel(date: Date): string {
+  return date.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
 function getPriority(summary: string): 'priority' | 'routine' {
   const lower = summary.toLowerCase()
   if (
@@ -61,7 +69,6 @@ function getAttendeeLabel(attendees: string[]): string {
 function getWeekStart(date: Date): Date {
   const d = new Date(date)
   const day = d.getDay()
-  // getDay(): 0=Sun, 1=Mon ... 6=Sat  -> shift so Monday=0
   const diff = day === 0 ? -6 : 1 - day
   d.setDate(d.getDate() + diff)
   d.setHours(0, 0, 0, 0)
@@ -89,6 +96,15 @@ function toISODate(date: Date): string {
   return date.toISOString()
 }
 
+function isPastEvent(endTime: string): boolean {
+  return new Date(endTime).getTime() < Date.now()
+}
+
+function isCurrentEvent(start: string, end: string): boolean {
+  const now = Date.now()
+  return new Date(start).getTime() <= now && new Date(end).getTime() > now
+}
+
 const DAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] as const
 
 // --- Data hooks ---
@@ -97,17 +113,43 @@ function useTodayEvents() {
   return useQuery<CalendarEvent[]>({
     queryKey: ['schedule', 'today'],
     queryFn: async () => {
+      const now = new Date()
+      const dayStart = new Date(now)
+      dayStart.setHours(0, 0, 0, 0)
+      const dayEnd = new Date(now)
+      dayEnd.setHours(23, 59, 59, 999)
+
       try {
-        const data = await apiGet<UpcomingEventsResponse>(
-          '/api/calendar/events/upcoming?limit=50',
+        // Fetch ALL events for today (including past ones)
+        const data = await apiGet<StoredEvent[] | { events: CalendarEvent[] }>(
+          `/api/calendar/events?start_date=${dayStart.toISOString()}&end_date=${dayEnd.toISOString()}&limit=50`,
         )
-        const now = new Date()
-        return (data.events ?? []).filter((e) => {
-          const start = new Date(e.start)
-          return isSameDay(start, now)
-        })
+        const events = Array.isArray(data) ? data : ((data as any).events ?? [])
+        // Normalize field names (stored events use start_time/end_time)
+        return events.map((e: any) => ({
+          id: e.id,
+          summary: e.summary,
+          start: e.start || e.start_time,
+          end: e.end || e.end_time,
+          location: e.location ?? null,
+          meeting_link: e.meeting_link ?? null,
+          attendees: Array.isArray(e.attendees)
+            ? e.attendees.map((a: any) => (typeof a === 'string' ? a : a.email || ''))
+            : [],
+        }))
       } catch {
-        return []
+        // Fallback: use upcoming endpoint and filter to today
+        try {
+          const data = await apiGet<UpcomingEventsResponse>(
+            '/api/calendar/events/upcoming?limit=50',
+          )
+          return (data.events ?? []).filter((e) => {
+            const start = new Date(e.start)
+            return isSameDay(start, now)
+          })
+        } catch {
+          return []
+        }
       }
     },
     refetchInterval: 60_000,
@@ -164,18 +206,43 @@ function ViewToggle({
   )
 }
 
-function EventCard({ event }: { event: CalendarEvent }) {
+function NowIndicator() {
+  const now = new Date()
+  const timeStr = now.toLocaleTimeString('en-US', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+  return (
+    <div className="flex items-center gap-3 py-1">
+      <span className="font-mono text-[11px] text-accent tracking-wider font-bold">
+        {timeStr}
+      </span>
+      <div className="flex-1 flex items-center gap-2">
+        <div className="w-2 h-2 rounded-full bg-accent shadow-[0_0_6px_theme(colors.accent)]" />
+        <div className="flex-1 h-px bg-accent/50" />
+      </div>
+      <span className="font-mono text-[10px] text-accent tracking-wider">NOW</span>
+    </div>
+  )
+}
+
+function EventCard({ event, dimmed, active }: { event: CalendarEvent; dimmed?: boolean; active?: boolean }) {
   const priority = getPriority(event.summary)
   const attendeeLabel = getAttendeeLabel(event.attendees)
   const isPriority = priority === 'priority'
 
   return (
     <div
-      className={`flex items-start gap-4 py-4 border-b border-border/50 last:border-b-0`}
+      className={`flex items-start gap-4 py-4 border-b border-border/50 last:border-b-0 transition-opacity ${
+        dimmed ? 'opacity-40' : ''
+      } ${active ? 'bg-accent/5 -mx-2 px-2 rounded' : ''}`}
     >
       {/* Time column */}
       <div className="shrink-0 w-14 pt-0.5">
-        <span className="font-mono text-[13px] text-text-secondary tracking-wide">
+        <span className={`font-mono text-[13px] tracking-wide ${
+          dimmed ? 'text-text-muted line-through' : active ? 'text-accent' : 'text-text-secondary'
+        }`}>
           {formatTime(event.start)}
         </span>
       </div>
@@ -183,25 +250,36 @@ function EventCard({ event }: { event: CalendarEvent }) {
       {/* Event card with left border */}
       <div
         className={`flex-1 min-w-0 pl-4 border-l-2 ${
-          isPriority ? 'border-accent' : 'border-border'
+          active ? 'border-accent' : isPriority ? 'border-accent' : dimmed ? 'border-border/50' : 'border-border'
         }`}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <p className="text-[15px] text-text-primary font-medium">
+            <p className={`text-[15px] font-medium ${
+              dimmed ? 'text-text-muted' : 'text-text-primary'
+            }`}>
               {event.summary}
+              {active && (
+                <span className="ml-2 inline-block w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+              )}
             </p>
             <div className="flex flex-wrap items-center gap-x-3 mt-1">
-              <span className="text-[12px] text-text-secondary font-mono tracking-wide">
+              <span className={`text-[12px] font-mono tracking-wide ${
+                dimmed ? 'text-text-muted' : 'text-text-secondary'
+              }`}>
                 {formatTime(event.start)} &mdash; {formatTime(event.end)}
               </span>
               {event.location && (
-                <span className="text-[12px] text-text-secondary truncate">
+                <span className={`text-[12px] truncate ${
+                  dimmed ? 'text-text-muted' : 'text-text-secondary'
+                }`}>
                   {event.location}
                 </span>
               )}
               {attendeeLabel && (
-                <span className="text-[12px] text-text-secondary font-mono tracking-wide">
+                <span className={`text-[12px] font-mono tracking-wide ${
+                  dimmed ? 'text-text-muted' : 'text-text-secondary'
+                }`}>
                   {attendeeLabel}
                 </span>
               )}
@@ -209,9 +287,11 @@ function EventCard({ event }: { event: CalendarEvent }) {
           </div>
           <span
             className={`shrink-0 font-mono text-[10px] tracking-wider px-2.5 py-1 border ${
-              isPriority
-                ? 'border-accent/40 text-accent bg-accent/10'
-                : 'border-border text-text-secondary bg-border/30'
+              dimmed
+                ? 'border-border/30 text-text-muted bg-border/10'
+                : isPriority
+                  ? 'border-accent/40 text-accent bg-accent/10'
+                  : 'border-border text-text-secondary bg-border/30'
             }`}
           >
             {isPriority ? 'PRIORITY' : 'ROUTINE'}
@@ -237,9 +317,10 @@ function TodayView() {
 
   if (!events || events.length === 0) {
     return (
-      <p className="text-sm text-text-secondary py-6">
-        No events scheduled for today
-      </p>
+      <div className="py-8 text-center space-y-2">
+        <p className="font-mono text-sm text-text-muted tracking-wider">NO EVENTS TODAY</p>
+        <p className="text-xs text-text-muted">Schedule is clear</p>
+      </div>
     )
   }
 
@@ -247,18 +328,71 @@ function TodayView() {
     (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime(),
   )
 
+  // Find where "now" falls in the timeline
+  let nowInserted = false
+
   return (
     <div>
-      {sorted.map((event) => (
-        <EventCard key={event.id} event={event} />
-      ))}
+      {/* Summary bar */}
+      <div className="flex items-center gap-4 mb-4 py-2 px-3 bg-surface border border-border/30 rounded">
+        <span className="font-mono text-[11px] text-text-secondary tracking-wider">
+          {sorted.length} EVENT{sorted.length !== 1 ? 'S' : ''}
+        </span>
+        <span className="text-border">|</span>
+        <span className="font-mono text-[11px] text-text-secondary tracking-wider">
+          {sorted.filter(e => !isPastEvent(e.end)).length} REMAINING
+        </span>
+        <span className="text-border">|</span>
+        <span className="font-mono text-[11px] text-text-secondary tracking-wider">
+          {sorted.filter(e => isPastEvent(e.end)).length} DONE
+        </span>
+      </div>
+
+      {sorted.map((event, i) => {
+        const past = isPastEvent(event.end)
+        const current = isCurrentEvent(event.start, event.end)
+        const elements: React.ReactNode[] = []
+
+        // Insert NOW indicator before the first non-past event
+        if (!nowInserted && !past) {
+          // Check if this is truly future (not current)
+          if (!current || i === 0) {
+            // Only show NOW line between past and future events (not mid-event)
+            const prevEvent = i > 0 ? sorted[i - 1] : null
+            if (prevEvent && isPastEvent(prevEvent.end) && !current) {
+              elements.push(<NowIndicator key="now-indicator" />)
+            } else if (i === 0 && !current) {
+              elements.push(<NowIndicator key="now-indicator" />)
+            }
+          }
+          nowInserted = true
+        }
+
+        elements.push(
+          <EventCard
+            key={event.id}
+            event={event}
+            dimmed={past}
+            active={current}
+          />
+        )
+
+        // If current event, show NOW after it
+        if (current) {
+          nowInserted = true
+        }
+
+        return elements
+      })}
+
+      {/* If all events are past, show NOW at the end */}
+      {sorted.every(e => isPastEvent(e.end)) && <NowIndicator />}
     </div>
   )
 }
 
 function WeekView() {
   const { data: storedEvents, isLoading, isError } = useWeekEvents()
-  const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null)
 
   const now = new Date()
   const weekStart = getWeekStart(now)
@@ -272,7 +406,7 @@ function WeekView() {
     })
   }, [weekStart.toISOString()])
 
-  // Group events by day index (0=Mon, 6=Sun)
+  // Group events by day index
   const eventsByDay = useMemo(() => {
     const grouped: Map<number, StoredEvent[]> = new Map()
     for (let i = 0; i < 7; i++) grouped.set(i, [])
@@ -287,12 +421,18 @@ function WeekView() {
           }
         }
       }
+      // Sort each day's events by time
+      for (let i = 0; i < 7; i++) {
+        grouped.get(i)!.sort(
+          (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+        )
+      }
     }
 
     return grouped
   }, [storedEvents, days])
 
-  // Find today's index in the week
+  // Find today's index
   const todayIndex = useMemo(() => {
     for (let i = 0; i < 7; i++) {
       if (isSameDay(days[i], now)) return i
@@ -311,127 +451,109 @@ function WeekView() {
   }
 
   return (
-    <div>
-      {/* Desktop: 7-column grid */}
-      <div className="hidden md:grid grid-cols-7 gap-px bg-border/30 border border-border rounded overflow-hidden">
-        {/* Header row */}
-        {DAY_LABELS.map((label, i) => (
+    <div className="space-y-1">
+      {days.map((day, i) => {
+        const dayEvents = eventsByDay.get(i) || []
+        const isToday = i === todayIndex
+        const isPastDay = day.getTime() < new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+
+        return (
           <div
-            key={label}
-            className={`px-2 py-2 text-center font-mono text-[11px] tracking-wider uppercase bg-surface ${
-              i === todayIndex
-                ? 'text-accent border-b-2 border-accent'
-                : 'text-text-secondary border-b border-border'
+            key={i}
+            className={`border transition-colors ${
+              isToday
+                ? 'border-accent/40 bg-accent/5'
+                : isPastDay
+                  ? 'border-border/30 opacity-60'
+                  : 'border-border/40 bg-surface'
             }`}
           >
-            {label}
-            <span className="block text-[10px] text-text-muted mt-0.5">
-              {days[i].getDate()}
-            </span>
-          </div>
-        ))}
-
-        {/* Day cells */}
-        {days.map((_day, i) => {
-          const dayEvents = eventsByDay.get(i) || []
-          const isToday = i === todayIndex
-          const isSelected = selectedDayIndex === i
-
-          return (
-            <button
-              key={i}
-              onClick={() => setSelectedDayIndex(isSelected ? null : i)}
-              className={`min-h-[100px] px-2 py-2 text-left bg-surface transition-colors cursor-pointer ${
-                isSelected
-                  ? 'ring-1 ring-accent/50 bg-accent/5'
-                  : isToday
-                    ? 'bg-accent/5'
-                    : 'hover:bg-surface-alt'
-              }`}
-            >
-              {dayEvents.length > 0 ? (
-                <div>
-                  <span className="font-mono text-[11px] text-text-secondary tracking-wider">
-                    {dayEvents.length} EVENT{dayEvents.length !== 1 ? 'S' : ''}
+            {/* Day header */}
+            <div className={`flex items-center justify-between px-4 py-2.5 border-b ${
+              isToday ? 'border-accent/30' : 'border-border/30'
+            }`}>
+              <div className="flex items-center gap-3">
+                <span className={`font-mono text-[12px] tracking-wider font-bold ${
+                  isToday ? 'text-accent' : isPastDay ? 'text-text-muted' : 'text-text-primary'
+                }`}>
+                  {DAY_LABELS[i]}
+                </span>
+                <span className={`font-mono text-[11px] ${
+                  isToday ? 'text-accent/70' : 'text-text-muted'
+                }`}>
+                  {formatDayLabel(day)}
+                </span>
+                {isToday && (
+                  <span className="font-mono text-[9px] tracking-wider px-2 py-0.5 bg-accent/20 text-accent border border-accent/30">
+                    TODAY
                   </span>
-                  <div className="mt-2 space-y-1">
-                    {dayEvents.slice(0, 2).map((ev) => (
-                      <p
-                        key={ev.id}
-                        className="text-[12px] text-text-primary truncate leading-tight"
-                      >
-                        {ev.summary}
-                      </p>
-                    ))}
-                    {dayEvents.length > 2 && (
-                      <p className="text-[11px] text-text-muted font-mono">
-                        +{dayEvents.length - 2} more
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <span className="text-[11px] text-text-muted font-mono">
-                  --
-                </span>
-              )}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Mobile: stacked list */}
-      <div className="md:hidden space-y-3">
-        {days.map((_day, i) => {
-          const dayEvents = eventsByDay.get(i) || []
-          const isToday = i === todayIndex
-          const isSelected = selectedDayIndex === i
-
-          return (
-            <button
-              key={i}
-              onClick={() => setSelectedDayIndex(isSelected ? null : i)}
-              className={`w-full text-left px-4 py-3 border transition-colors ${
-                isSelected
-                  ? 'border-accent/50 bg-accent/5'
-                  : isToday
-                    ? 'border-accent/30 bg-surface'
-                    : 'border-border bg-surface'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1">
-                <span
-                  className={`font-mono text-[12px] tracking-wider uppercase ${
-                    isToday ? 'text-accent' : 'text-text-secondary'
-                  }`}
-                >
-                  {DAY_LABELS[i]} {days[i].getDate()}
-                </span>
-                <span className="font-mono text-[11px] text-text-muted tracking-wider">
-                  {dayEvents.length} EVENT{dayEvents.length !== 1 ? 'S' : ''}
-                </span>
+                )}
               </div>
-              {dayEvents.length > 0 && (
-                <div className="space-y-1 mt-1">
-                  {dayEvents.slice(0, 2).map((ev) => (
-                    <p
+              <span className={`font-mono text-[11px] tracking-wider ${
+                dayEvents.length > 0 ? 'text-text-secondary' : 'text-text-muted'
+              }`}>
+                {dayEvents.length > 0
+                  ? `${dayEvents.length} event${dayEvents.length !== 1 ? 's' : ''}`
+                  : '—'}
+              </span>
+            </div>
+
+            {/* Events list */}
+            {dayEvents.length > 0 && (
+              <div className="px-4 py-1">
+                {dayEvents.map((ev) => {
+                  const past = isPastEvent(ev.end_time)
+                  const current = isCurrentEvent(ev.start_time, ev.end_time)
+                  const priority = getPriority(ev.summary)
+                  const isPriorityEvent = priority === 'priority'
+                  const attendees = Array.isArray(ev.attendees)
+                    ? ev.attendees.map((a: any) => typeof a === 'string' ? a : a.email || '')
+                    : []
+                  const attendeeLabel = getAttendeeLabel(attendees)
+
+                  return (
+                    <div
                       key={ev.id}
-                      className="text-[13px] text-text-primary truncate"
+                      className={`flex items-center gap-3 py-2.5 border-b border-border/20 last:border-b-0 ${
+                        past ? 'opacity-40' : ''
+                      } ${current ? 'bg-accent/5 -mx-2 px-2 rounded' : ''}`}
                     >
-                      {ev.summary}
-                    </p>
-                  ))}
-                  {dayEvents.length > 2 && (
-                    <p className="text-[11px] text-text-muted font-mono">
-                      +{dayEvents.length - 2} more
-                    </p>
-                  )}
-                </div>
-              )}
-            </button>
-          )
-        })}
-      </div>
+                      <span className={`font-mono text-[12px] tracking-wide shrink-0 w-12 ${
+                        current ? 'text-accent font-bold' : past ? 'text-text-muted' : 'text-text-secondary'
+                      }`}>
+                        {formatTime(ev.start_time)}
+                      </span>
+                      <div className={`w-0.5 h-4 shrink-0 ${
+                        current ? 'bg-accent' : isPriorityEvent ? 'bg-accent/60' : 'bg-border'
+                      }`} />
+                      <div className="flex-1 min-w-0">
+                        <span className={`text-[13px] ${
+                          past ? 'text-text-muted' : 'text-text-primary'
+                        }`}>
+                          {ev.summary}
+                          {current && (
+                            <span className="ml-2 inline-block w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                          )}
+                        </span>
+                        {attendeeLabel && (
+                          <span className="ml-2 text-[11px] text-text-muted font-mono">
+                            {attendeeLabel}
+                          </span>
+                        )}
+                      </div>
+                      {isPriorityEvent && !past && (
+                        <span className="font-mono text-[9px] tracking-wider px-1.5 py-0.5 border border-accent/30 text-accent bg-accent/10 shrink-0">
+                          PRI
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }

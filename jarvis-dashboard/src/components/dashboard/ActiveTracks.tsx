@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { apiGet } from '../../api/client.ts'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton.tsx'
@@ -55,6 +56,7 @@ function statusColor(status: string): string {
 }
 
 export function ActiveTracks() {
+  const navigate = useNavigate()
   const { data: patterns, isLoading } = useQuery({
     queryKey: ['workflow', 'patterns'],
     queryFn: fetchPatterns,
@@ -73,7 +75,8 @@ export function ActiveTracks() {
             return (
               <div
                 key={pattern.id}
-                className="py-3.5 border-b border-border/50 last:border-b-0"
+                onClick={() => navigate('/patterns')}
+                className="py-3.5 border-b border-border/50 last:border-b-0 cursor-pointer hover:bg-surface/20 transition-colors rounded px-2 -mx-2"
               >
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-[14px] text-text-primary">{pattern.name}</p>

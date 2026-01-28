@@ -188,10 +188,33 @@ Plans:
 Plans:
 - [x] 08-01-PLAN.md — Catch Me Up API with summarization, morning briefings, MCP tools, and web UI
 
+### Phase 9: Brain Timeline + Deep Memory
+**Goal**: User never forgets anything — granular memory search, visual timeline of all decisions/projects/people, and proactive detection of unfinished work
+**Depends on**: Phase 2 (search), Phase 8 (context recovery)
+**Requirements**: Derived from "I never want to forget a thing again" vision
+**Success Criteria** (what must be TRUE):
+  1. All 5,040 conversations chunked into ~75k searchable segments with metadata tags
+  2. Timeline view shows monthly breakdown of projects, decisions, people, topics
+  3. Search returns specific paragraphs (not whole conversations) with highlighted context
+  4. Unfinished Business Detector cross-references GitHub repos + conversations + emails
+  5. Monday report surfaces: unfinished projects, broken promises, quiet repos
+**Plans**: TBD — currently in build phase
+
+Status:
+- [x] Deep memory chunker (chunker.py)
+- [x] Heuristic tagger (tagger.py) — people, projects, decisions, action items, topics
+- [x] Batch indexer (indexer.py) — creates memory_chunks Qdrant collection
+- [x] Memory Timeline API (memory_timeline.py) — timeline, search, stats endpoints
+- [ ] Deploy + run indexer on all 5k conversations
+- [ ] Brain Timeline UI page on dashboard
+- [ ] Unfinished Business Detector (GitHub + conversations + emails)
+- [ ] Monday report automation (cron → Telegram voice brief)
+- [ ] One-click JSON import (drop ChatGPT/Claude exports, auto-process)
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -203,6 +226,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 6. Workflow Automation Engine | 7/7 | **Complete** | 2026-01-26 |
 | 7. Web UI & Visualization | 6/6 | **Complete** | 2026-01-26 |
 | 8. Never Lose Context | 1/1 | **Complete** | 2026-01-25 |
+| 9. Brain Timeline + Deep Memory | 4/9 | **In Progress** | — |
 
 ---
 *Roadmap created: 2026-01-24*

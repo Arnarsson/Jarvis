@@ -70,6 +70,7 @@ class EmailMessage(Base):
     )  # JSON array of label IDs
     is_unread: Mapped[bool] = mapped_column(default=False)
     is_important: Mapped[bool] = mapped_column(default=False)
+    is_archived: Mapped[bool] = mapped_column(default=False)
 
     # Classification
     category: Mapped[str | None] = mapped_column(
@@ -95,6 +96,7 @@ class EmailMessage(Base):
         Index("ix_email_messages_from", "from_address"),
         Index("ix_email_messages_thread", "thread_id"),
         Index("ix_email_messages_category", "category"),
+        Index("ix_email_messages_archived", "is_archived"),
     )
 
     def __repr__(self) -> str:

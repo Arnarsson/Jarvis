@@ -39,7 +39,7 @@ class PatternDetector:
         self.qdrant_client = qdrant_client
         
         # Configuration
-        self.similarity_threshold = 0.85
+        self.similarity_threshold = 0.75
         self.min_frequency_for_pattern = 3
         self.lookback_hours = 168  # 1 week
 
@@ -130,7 +130,7 @@ class PatternDetector:
         texts = [capture.ocr_text or ""] + [c.ocr_text or "" for c in similar_captures]
         common_words = self._find_common_words(texts)
         
-        if not common_words:
+        if len(common_words) < 5:
             return None
         
         # Generate pattern name
@@ -164,8 +164,20 @@ class PatternDetector:
         for ws in word_sets[1:]:
             common = common & ws
         
-        # Filter out short/common words
-        common = {w for w in common if len(w) > 3}
+        # Filter out short/common words and OCR noise
+        noise = {
+            'the', 'and', 'for', 'that', 'this', 'with', 'from', 'have', 'your',
+            'will', 'been', 'more', 'were', 'they', 'some', 'than', 'what', 'when',
+            'there', 'their', 'about', 'would', 'which', 'could', 'other', 'into',
+            # Common OCR garbage
+            'uae:', 'opi:', 'oaths', 'hæder:', 'credit', 'even', '2781)', '2583)',
+            'sees', 'gites', 'googe', 'cenc', 'eder', 'gies',
+        }
+        common = {w for w in common if len(w) > 4 and w not in noise and w.isalpha()}
+        # Filter OCR garbage: only keep words that look like real English/Danish
+        # Real words don't usually have unusual character patterns
+        import re
+        common = {w for w in common if re.match(r'^[a-zæøåäöü]+$', w) and not re.search(r'(.){2,}', w)}
         return common
 
     async def _check_time_based_pattern(self, capture: Capture) -> Optional[DetectedPattern]:
@@ -226,6 +238,7 @@ class PatternDetector:
         
         candidates = []
         analyzed_ids = set()
+        seen_names = set()
         
         for capture in captures:
             if capture.id in analyzed_ids:
@@ -233,9 +246,24 @@ class PatternDetector:
             
             patterns = await self.detect_patterns(capture.id)
             for pattern in patterns:
+                # Skip repetitive action patterns until OCR quality is reliable
+                if pattern.pattern_type == "REPETITIVE_ACTION":
+                    continue
+                # Deduplicate by name
+                if pattern.name in seen_names:
+                    continue
+                seen_names.add(pattern.name)
                 analyzed_ids.update(pattern.similar_captures)
                 candidates.append({
-                    "pattern": pattern,
+                    "pattern": {
+                        "pattern_type": pattern.pattern_type,
+                        "name": pattern.name,
+                        "description": pattern.description,
+                        "trigger_conditions": pattern.trigger_conditions,
+                        "actions": pattern.actions,
+                    },
+                    "confidence": pattern.confidence,
+                    "evidence_count": len(pattern.similar_captures),
                     "source_capture_id": capture.id,
                     "detected_at": datetime.now(timezone.utc).isoformat(),
                 })

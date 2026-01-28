@@ -11,7 +11,9 @@ from sqlalchemy import select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from jarvis_server.db.session import get_db
-from jarvis_server.db.models import CalendarEvent, EmailMessage, Promise, Capture
+from jarvis_server.calendar.models import CalendarEvent
+from jarvis_server.email.models import EmailMessage
+from jarvis_server.db.models import Promise, Capture
 
 logger = structlog.get_logger(__name__)
 
