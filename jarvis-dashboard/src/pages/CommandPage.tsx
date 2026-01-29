@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { apiPost } from '../api/client.ts'
 
 // --- Types ---
@@ -104,6 +105,7 @@ function renderContent(text: string) {
 // --- Component ---
 
 export function CommandPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [messages, setMessages] = useState<ChatMessage[]>(loadHistory)
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
@@ -122,6 +124,24 @@ export function CommandPage() {
   useEffect(() => {
     inputRef.current?.focus()
   }, [])
+
+  // Handle prefill query parameter
+  useEffect(() => {
+    const prefill = searchParams.get('prefill')
+    if (prefill) {
+      setInput(prefill)
+      // Clear the query param to avoid re-filling on refresh
+      setSearchParams({}, { replace: true })
+      // Focus and scroll to show prefilled text
+      setTimeout(() => {
+        inputRef.current?.focus()
+        if (inputRef.current) {
+          inputRef.current.style.height = 'auto'
+          inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`
+        }
+      }, 100)
+    }
+  }, [searchParams, setSearchParams])
 
   // Persist history
   useEffect(() => {
